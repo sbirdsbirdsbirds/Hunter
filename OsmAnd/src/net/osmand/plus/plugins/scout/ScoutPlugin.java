@@ -1,5 +1,6 @@
 package net.osmand.plus.plugins.scout;
 
+import static net.osmand.aidlapi.OsmAndCustomizationConstants.DRAWER_ITEM_ID_SCHEME;
 import static net.osmand.aidlapi.OsmAndCustomizationConstants.MAP_CONTEXT_MENU_ACTIONS;
 
 import androidx.annotation.NonNull;
@@ -17,6 +18,7 @@ import net.osmand.plus.activities.MapActivity;
 import net.osmand.plus.myplaces.favorites.FavouritesHelper;
 import net.osmand.plus.myplaces.favorites.add.AddFavoriteOptions;
 import net.osmand.plus.plugins.OsmandPlugin;
+import net.osmand.plus.plugins.scout.planner.StandPlannerFragment;
 import net.osmand.plus.quickaction.QuickActionType;
 import net.osmand.plus.render.RenderingIcons;
 import net.osmand.plus.shared.SharedUtil;
@@ -59,6 +61,7 @@ public class ScoutPlugin extends OsmandPlugin {
 	public static final String TRACKS_SUBDIR = "Scout";
 	private static final String CONTEXT_MENU_MARK_ID = MAP_CONTEXT_MENU_ACTIONS + "scout_mark";
 	private static final int CONTEXT_MENU_ORDER = 10600;
+	private static final String DRAWER_STAND_PLANNER_ID = DRAWER_ITEM_ID_SCHEME + "scout_stand_planner";
 
 	/** Minimum spacing between recorded deer-trail points, in metres. */
 	private static final double DEER_TRAIL_MIN_STEP_M = 3.0;
@@ -103,7 +106,25 @@ public class ScoutPlugin extends OsmandPlugin {
 		List<QuickActionType> types = new ArrayList<>();
 		types.add(ScoutMarkAction.TYPE);
 		types.add(ScoutDeerTrailAction.TYPE);
+		types.add(StandPlannerAction.TYPE);
 		return types;
+	}
+
+	// ---- Stand Planner ---------------------------------------------------------------------
+
+	@Override
+	protected void registerOptionsMenuItems(@NonNull MapActivity mapActivity, @NonNull ContextMenuAdapter helper) {
+		helper.addItem(new ContextMenuItem(DRAWER_STAND_PLANNER_ID)
+				.setTitleId(R.string.scout_stand_planner, mapActivity)
+				.setIcon(R.drawable.ic_action_flag)
+				.setListener((uiAdapter, view, item, isChecked) -> {
+					openStandPlanner(mapActivity);
+					return true;
+				}));
+	}
+
+	public void openStandPlanner(@NonNull MapActivity mapActivity) {
+		StandPlannerFragment.showInstance(mapActivity);
 	}
 
 	// ---- Marks ---------------------------------------------------------------------------
@@ -148,7 +169,7 @@ public class ScoutPlugin extends OsmandPlugin {
 	@Nullable
 	public FavouritePoint addMark(@NonNull ScoutMark mark, double latitude, double longitude) {
 		long now = System.currentTimeMillis();
-		String stamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date(now));
+		String stamp = new SimpleDateFormat("MMM d HH:mm:ss", Locale.US).format(new Date(now));
 		String name = mark.label + " " + stamp;
 
 		FavouritePoint point = new FavouritePoint(latitude, longitude, name, mark.folder, Double.NaN, now);

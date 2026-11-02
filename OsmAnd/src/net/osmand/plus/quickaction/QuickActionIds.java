@@ -85,4 +85,5 @@ public class QuickActionIds {
 	// Scout (hunting) plugin — kept far above upstream IDs so rebases don't collide
 	public static final int SCOUT_MARK_ACTION_ID = 9001;
 	public static final int SCOUT_DEER_TRAIL_ACTION_ID = 9002;
+	public static final int SCOUT_STAND_PLANNER_ACTION_ID = 9003;
 }

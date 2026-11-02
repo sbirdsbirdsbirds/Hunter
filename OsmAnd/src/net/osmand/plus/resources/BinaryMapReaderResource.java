@@ -52,6 +52,11 @@ public class BinaryMapReaderResource {
 		return file.getName();
 	}
 
+	@NonNull
+	public File getFile() {
+		return file;
+	}
+
 	public long getFileLastModified() {
 		return file.lastModified();
 	}

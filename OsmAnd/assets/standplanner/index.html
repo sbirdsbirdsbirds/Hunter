@@ -1,0 +1,1578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'none'; connect-src 'self'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#1C2219">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Stand Planner</title>
+<style>
+html{-webkit-text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+/* Layout: field-notebook tool. A map plate on top, then stacked cards: conditions, suggested blinds, your blinds, points. */
+:root{
+  --bg:#F1F3EC; --paper:#E6EADD; --card:#FFFFFF; --ink:#1C2219; --muted:#5B6455; --line:#D2D8C7; --grid:#D7DCCB;
+  --orange:#DD520B; --orange-ink:#8C3304; --orange-soft:#FBE2D2; --on-orange:#FFFFFF;
+  --deer:#86552A; --water:#2C6A9C; --field:#5B8034; --bed:#6E6450; --bait:#C98510;
+  --ok:#3D7A37; --warn:#A86300; --bad:#AE372B;
+  --display:"sans-serif-condensed","Roboto Condensed","Arial Narrow",sans-serif;
+  --body:system-ui,Roboto,-apple-system,sans-serif;
+  --mono:ui-monospace,"Roboto Mono","Droid Sans Mono",monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111510; --paper:#181E15; --card:#1C2318; --ink:#E5E9DC; --muted:#9BA492; --line:#2F3829; --grid:#252D20;
+  --orange:#FF7630; --orange-ink:#FFB287; --orange-soft:#3A2214; --on-orange:#1A0C04;
+  --deer:#CB935C; --water:#6BA6DA; --field:#8EB862; --bed:#B5A88C; --bait:#E5AE45;
+  --ok:#7DC072; --warn:#E3A13F; --bad:#EE7D70; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#111510; --paper:#181E15; --card:#1C2318; --ink:#E5E9DC; --muted:#9BA492; --line:#2F3829; --grid:#252D20;
+  --orange:#FF7630; --orange-ink:#FFB287; --orange-soft:#3A2214; --on-orange:#1A0C04;
+  --deer:#CB935C; --water:#6BA6DA; --field:#8EB862; --bed:#B5A88C; --bait:#E5AE45;
+  --ok:#7DC072; --warn:#E3A13F; --bad:#EE7D70; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 40px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 16px}
+h1{font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:.01em;margin:0;line-height:1.1;text-wrap:balance}
+h1 span{color:var(--orange)}
+h2{font-family:var(--display);font-weight:600;font-size:21px;margin:0;letter-spacing:.01em;text-wrap:balance}
+.sub{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.label{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 12px;font-weight:500;font-size:15px;line-height:1.2;display:inline-flex;align-items:center;gap:6px;min-height:40px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--orange);border-color:var(--orange);color:var(--on-orange);font-weight:600}
+.btn.on{background:var(--orange-soft);border-color:var(--orange);color:var(--orange-ink)}
+.btn.small{min-height:32px;padding:5px 10px;font-size:14px}
+.btn.danger{color:var(--bad)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tools select{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px;min-height:40px;font-size:15px;max-width:100%}
+.banner{border:1px dashed var(--orange);background:var(--orange-soft);color:var(--orange-ink);border-radius:8px;padding:8px 12px;font-size:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.mapbox{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--paper)}
+#map{display:block;width:100%;height:min(62vh,540px);min-height:320px;touch-action:none;user-select:none;-webkit-user-select:none}
+.hint{position:absolute;left:8px;right:8px;bottom:8px;text-align:center;pointer-events:none}
+.hint span{display:inline-block;background:var(--ink);color:var(--bg);font-size:13px;padding:4px 10px;border-radius:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:8px 14px;min-height:40px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.field-in{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field-in input,.field-in select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px;min-height:40px;width:100%}
+.windrow{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+@media (max-width:460px){.windrow{grid-template-columns:1fr;justify-items:center}}
+#dial{width:150px;height:150px;touch-action:none;cursor:grab}
+.strip{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;align-items:end;height:64px;width:100%}
+.strip button{border:0;padding:0;background:var(--grid);border-radius:3px 3px 0 0;min-height:4px;position:relative}
+.strip button.cur{background:var(--orange)}
+.strip button.good{background:var(--field)}
+.strip button.cur.good{background:var(--orange)}
+.striplab{display:grid;grid-template-columns:repeat(16,1fr);gap:3px;font-family:var(--mono);font-size:9.5px;color:var(--muted);text-align:center}
+.windnote{font-size:14px;color:var(--muted)}
+.sugg{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--bg)}
+.sugg.sel{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange)}
+.sugg-h{display:flex;gap:10px;align-items:center}
+.badge{flex:none;width:30px;height:30px;border-radius:6px;background:var(--orange);color:var(--on-orange);font-family:var(--display);font-weight:700;font-size:18px;display:grid;place-items:center}
+.badge.mine{background:transparent;border:2px solid var(--orange);color:var(--orange-ink)}
+.sugg-t{font-family:var(--display);font-weight:600;font-size:19px;line-height:1.15}
+.meter{height:6px;border-radius:3px;background:var(--grid);overflow:hidden;flex:1;min-width:60px}
+.meter i{display:block;height:100%;background:var(--ok)}
+ul.why{margin:0;padding-left:18px;font-size:15px;display:flex;flex-direction:column;gap:3px}
+ul.why li.neg{color:var(--warn)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--muted)}
+.chip.good{border-color:var(--field);color:var(--field)}
+.coords{font-family:var(--mono);font-size:12.5px;color:var(--muted);word-break:break-all;font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);font-size:15px}
+.plist{display:flex;flex-direction:column}
+.pitem{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:9px 4px;border-top:1px solid var(--line);background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;width:100%}
+.pitem:first-child{border-top:0}
+.pitem small{display:block;color:var(--muted);font-size:13.5px;line-height:1.35}
+.pitem .nm{font-weight:600}
+.lrow{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
+.lrow:first-child{border-top:0;padding-top:2px}
+.imgbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:8px 12px}
+.legend{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:10px 14px}
+.legend summary{font-family:var(--display);font-weight:600;font-size:17px;cursor:pointer;min-height:28px;display:flex;align-items:center}
+.legend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px;margin-top:8px}
+.lg{display:flex;align-items:center;gap:8px;font-size:14px;line-height:1.3;min-width:0}
+.lg svg{flex:none}
+.facing{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15.5px}
+.facing svg{flex:none}
+.moved{margin:0;font-size:14px;color:var(--warn);border-left:3px solid var(--warn);padding-left:8px;border-radius:0}
+.cpwrap{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.cpick{width:min(220px,70vw);height:auto;touch-action:manipulation}
+.cpick path[data-ci]{cursor:pointer}
+.cpick path[data-ci]:focus-visible{outline:none;stroke:var(--orange);stroke-width:2.5}
+.sbar svg,.dbar svg{display:block;width:100%;height:auto}
+.phase-t{font-family:var(--display);font-weight:600;font-size:19px;line-height:1.2}
+input[type=range]{accent-color:var(--orange)}
+.note{font-size:13.5px;color:var(--muted);line-height:1.45}
+.blocks{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.blocks li{display:grid;grid-template-columns:86px 1fr;gap:10px;font-size:15px;align-items:start}
+.blocks .tm{font-family:var(--mono);font-size:12.5px;color:var(--muted);padding-top:2px;font-variant-numeric:tabular-nums}
+.lvl{display:inline-block;width:26px;height:7px;border-radius:2px;margin-right:6px;vertical-align:middle;background:var(--grid)}
+.lvl i{display:block;height:100%;border-radius:2px;background:var(--deer)}
+.editor{border:1px solid var(--orange);background:var(--card);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+.srow{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:6px;align-items:end}
+.srow select,.srow input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:6px;min-height:38px;width:100%;min-width:0;font-size:15px}
+.x{border:1px solid var(--line);background:transparent;border-radius:8px;min-height:38px;width:38px;font-size:18px;line-height:1}
+textarea#gpxout{width:100%;height:140px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:8px}
+.status{font-size:13px;color:var(--muted)}
+.foot{font-size:13px;color:var(--muted);line-height:1.45}
+.nativefile{border:1px dashed var(--muted);background:var(--bg);border-radius:8px;padding:12px;min-height:48px;width:100%;font-size:15px}
+.nativefile::file-selector-button{font:inherit;font-weight:600;border:0;border-radius:6px;background:var(--orange);color:var(--on-orange);padding:8px 12px;margin-right:10px;cursor:pointer}
+.privacy{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--field);font-weight:600}
+.privacy::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--field)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+a{color:var(--water)}
+@media (prefers-reduced-motion:no-preference){.sugg,.btn{transition:border-color .15s,background .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Stand <span>Planner</span></h1>
+    <div class="sub" id="suntxt"></div>
+  </header>
+
+  <div class="banner" id="exbanner" hidden>
+    <span>Example layout, not your GPS. Import your OsmAnd GPX to replace it.</span>
+    <button class="btn small" id="clearEx">Start empty</button>
+  </div>
+
+  <span class="privacy">Offline. Your locations stay on this phone.</span>
+
+  <div class="tools">
+    <button class="btn primary" id="importbtn">Import GPX</button>
+    <select id="addtype" aria-label="Point type to add"></select>
+    <button class="btn" id="addbtn">Add point</button>
+    <button class="btn" id="fitbtn">Fit</button>
+    <button class="btn" id="exportbtn">Export</button>
+    <button class="btn" id="oasync" hidden>Refresh from OsmAnd</button>
+  </div>
+
+  <div class="card" id="importbox" hidden>
+    <div class="row" style="justify-content:space-between"><h2>Import from OsmAnd</h2><button class="btn small" id="imClose">Close</button></div>
+    <div class="field-in">
+      <label class="label" for="gpxfile">Choose a GPX, an OsmAnd export (.osf), a Sentinel-2 image (.tif or .kmz), or a backup</label>
+      <input type="file" id="gpxfile" multiple class="nativefile">
+    </div>
+    <span class="status" id="imMsg"></span>
+    <div class="field-in">
+      <label class="label" for="gpxpaste">Or paste the GPX text</label>
+      <textarea id="gpxpaste" placeholder="&lt;?xml version=&quot;1.0&quot;?&gt; &lt;gpx ...&gt;" style="width:100%;height:110px;font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:8px"></textarea>
+    </div>
+    <div><button class="btn" id="imPaste">Import pasted text</button></div>
+    <p class="windnote" style="margin:0">In OsmAnd, open My Places, then share a track or your favourites as a GPX file and save it to Downloads. Then choose it here. Files are read on this phone and never uploaded.</p>
+    <p class="windnote" style="margin:0"><b>Everything in one OsmAnd export:</b> in OsmAnd's export (.osf), tick your tracks, favourites, regional map and contour lines, save it, and choose it here. The app imports your points and tracks first, then pulls creeks, ponds, wetlands and contours around them. This all happens on the phone; keep that file to yourself, since it holds your locations.</p>
+    <p class="windnote" style="margin:0"><b>Map only:</b> if you import your points another way first, an export with just your regional map works too. The app pulls water features within 1.5 km of your plan, on this phone. If you export contour lines too, they become your elevation.</p>
+    <p class="windnote" style="margin:0"><b>Sharp imagery from OsmAnd:</b> if you use an imagery map in OsmAnd, download its tiles for the area around your property (zoom 16–18 is plenty), then include that map in your OsmAnd export. The app stitches the tiles around your plan, on this phone. Keep the area small, and check the imagery provider's terms.</p>
+    <p class="windnote" style="margin:0"><b>Sentinel-2 satellite image:</b> in the Copernicus Browser (free account), zoom out so your property is well inside the view and off-centre, pick a recent clear date, choose the True colour layer, then Download &gt; Analytical: image format TIFF (8-bit), coordinate system WGS 84, highest resolution. Choose the file here. The app keeps only the part around your plan, on this phone.</p>
+    <p class="windnote" style="margin:0"><b>Tracing a creek yourself:</b> in OsmAnd, open Menu &gt; Plan a route, switch the profile to Straight line, and tap along the creek (or the bottom of the ravine) on the map. Save it as a track with "creek" or "ravine" in the name, then share it here. Tracing from upstream to downstream sets the flow direction; otherwise heights decide it, or you can reverse it under Lines.</p>
+    <p class="windnote" style="margin:0"><b>Elevation:</b> tracks you record with OsmAnd already store a height at every point. The more of the property you walk with recording on, especially ridges and low ground, the better the downhill arrows get. Phone GPS heights are rough (often off by several metres), so treat small slopes with caution.</p>
+  </div>
+
+  <div class="mapbox">
+    <svg id="map" role="img" aria-label="Map of your trail, points and suggested blinds"></svg>
+    <div class="hint" id="hint" hidden><span id="hinttxt"></span></div>
+  </div>
+
+  <div class="imgbar" id="imgbar" hidden>
+    <span class="label" id="imglabel">Satellite</span>
+    <label class="sr-only" for="imgfade">Imagery strength</label>
+    <input type="range" id="imgfade" min="0" max="100" step="5" style="flex:1;min-width:110px">
+    <button class="btn small" id="imgRemove">Remove</button>
+    <small class="sub" id="imgcredit" style="flex-basis:100%" hidden></small>
+  </div>
+  <details class="legend" id="legend" open>
+    <summary>Map key</summary>
+    <div class="legend-grid">
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><rect x="3" y="3" width="24" height="12" rx="2" fill="#5d7a4a"/><rect x="14" y="3" width="13" height="12" fill="#c9b98a"/></svg><span>Satellite or aerial image (fade with the slider)</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M6 9H22M17 5L22 9L17 13" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Downhill (where dawn air and scent slide)</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M2 9H28" stroke="var(--water)" stroke-width="3"/><path d="M12 4L17 9L12 14" fill="none" stroke="var(--card)" stroke-width="3" stroke-linecap="round"/><path d="M12 4L17 9L12 14" fill="none" stroke="var(--water)" stroke-width="1.8" stroke-linecap="round"/></svg><span>Creek, with flow direction</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M2 9H28" stroke="var(--water)" stroke-width="7" stroke-opacity=".12"/><path d="M2 9H28" stroke="var(--water)" stroke-width="2" stroke-dasharray="2 5" stroke-linecap="round"/></svg><span>Ravine bottom</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><rect x="3" y="3" width="24" height="12" rx="5" fill="var(--water)" fill-opacity=".22" stroke="var(--water)"/></svg><span>Pond or lake</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><rect x="3" y="3" width="24" height="12" rx="3" fill="var(--water)" fill-opacity=".08" stroke="var(--field)" stroke-dasharray="3 3"/></svg><span>Wetland</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><rect x="3" y="3" width="24" height="12" rx="2" fill="var(--field)" fill-opacity=".22"/></svg><span>Woods</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><rect x="3" y="3" width="24" height="12" rx="2" fill="var(--bait)" fill-opacity=".14" stroke="var(--line)"/></svg><span>Open ground or field (map)</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M2 12C9 4 20 4 28 10" fill="none" stroke="var(--deer)" stroke-opacity=".5"/></svg><span>Contour line (10 m)</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M2 9H28" stroke="var(--deer)" stroke-width="3" stroke-opacity=".6" stroke-dasharray="7 5"/></svg><span>Deer trail or deer path section</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M2 9H28" stroke="var(--ink)" stroke-opacity=".55" stroke-width="2.2" stroke-dasharray="1 5" stroke-linecap="round"/></svg><span>Human path or your walking route</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M3 9H20" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/><path d="M27 9L19 4V14Z" fill="var(--ink)"/></svg><span>Which way the blind faces (main shot)</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M2 9H28" stroke="var(--orange)" stroke-width="3" stroke-dasharray="0.1 6" stroke-linecap="round"/></svg><span>Walk-in route from your access point</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M4 15L26 4A24 24 0 0 1 26 15Z" fill="var(--bad)" fill-opacity=".4" stroke="var(--bad)"/></svg><span>Unsafe shooting direction</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M4 9L26 2A26 26 0 0 1 26 16Z" fill="var(--ink)" fill-opacity=".14" stroke="var(--ink)" stroke-opacity=".45"/><rect x="2" y="5" width="8" height="8" rx="1.5" fill="var(--card)" stroke="var(--ink)" stroke-width="1.3"/></svg><span>What a trail camera sees</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M9 9L28 2A18 18 0 0 1 28 16Z" fill="var(--orange)" fill-opacity=".15"/><rect x="2" y="2" width="14" height="14" rx="3" fill="var(--orange)"/><text x="9" y="13" text-anchor="middle" font-size="11" font-weight="700" fill="var(--on-orange)">1</text></svg><span>Suggested blind and its scent cone</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><rect x="8" y="2" width="14" height="14" rx="3" fill="var(--card)" stroke="var(--orange)" stroke-width="2.5"/></svg><span>Your own blind</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><circle cx="15" cy="9" r="8" fill="var(--card)" stroke="var(--line)"/><path d="M10 6L19 11" stroke="var(--water)" stroke-width="2" stroke-linecap="round"/><path d="M20 12L15 12L18 8Z" fill="var(--water)"/></svg><span>Wind (points where it blows)</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><rect x="9" y="3" width="12" height="12" rx="2" fill="var(--card)" stroke="var(--ink)" stroke-width="1.5"/><circle cx="15" cy="9" r="2.5" fill="var(--ink)"/></svg><span>Trail camera</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M10 4L20 14M20 4L10 14" stroke="var(--deer)" stroke-width="3" stroke-linecap="round"/></svg><span>Scrape or rub</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M7 6H23M7 12H23" stroke="var(--deer)" stroke-width="2.5" stroke-linecap="round"/></svg><span>Crossing or funnel</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><circle cx="15" cy="9" r="7.5" fill="var(--bed)" fill-opacity=".14" stroke="var(--bed)" stroke-dasharray="4 3"/></svg><span>Bedding area</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><circle cx="15" cy="9" r="7.5" fill="var(--field)" fill-opacity=".16" stroke="var(--field)"/></svg><span>Field you marked</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><circle cx="15" cy="9" r="6" fill="var(--bait)" stroke="var(--card)" stroke-width="1.5"/></svg><span>Bait or salt</span></div>
+      <div class="lg"><svg width="30" height="18" viewBox="0 0 30 18" aria-hidden="true"><path d="M15 2L22 15H8Z" fill="var(--muted)"/></svg><span>Access or parking</span></div>
+    </div>
+  </details>
+  <div id="editor" class="editor" hidden></div>
+  <div id="exportbox" class="card" hidden></div>
+
+  <section class="card" aria-labelledby="condh">
+    <h2 id="condh">Conditions</h2>
+    <div class="row">
+      <div class="seg" role="group" aria-label="Session">
+        <button id="sesAM" aria-pressed="true">Morning</button>
+        <button id="sesPM" aria-pressed="false">Evening</button>
+      </div>
+      <div class="field-in" style="flex:1;min-width:140px">
+        <label class="label" for="date">Hunt date</label>
+        <input type="date" id="date">
+      </div>
+      <div class="field-in" style="flex:1;min-width:140px">
+        <label class="label" for="maxshot">Max shot in cover: <span id="maxshotv"></span> m</label>
+        <input type="range" id="maxshot" min="50" max="300" step="10">
+      </div>
+    </div>
+    <div class="windrow">
+      <svg id="dial" viewBox="0 0 150 150" role="slider" aria-label="Wind direction" tabindex="0"></svg>
+      <div style="display:flex;flex-direction:column;gap:6px;min-width:0;width:100%">
+        <div class="row" style="justify-content:space-between">
+          <span class="label">Wind from <b id="windtxt" style="color:var(--ink)"></b></span>
+          <span class="row" style="gap:6px"><button class="btn small" id="wl" aria-label="Rotate wind left">&#8630;</button><button class="btn small" id="wr" aria-label="Rotate wind right">&#8631;</button></span>
+        </div>
+        <div class="strip" id="strip" aria-label="How well the best spot works for each wind"></div>
+        <div class="striplab" id="striplab"></div>
+        <div class="windnote" id="windnote"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="seash">
+    <div class="row" style="justify-content:space-between"><h2 id="seash">Deer on this date</h2><span class="sub" id="seasub"></span></div>
+    <div id="season" style="display:flex;flex-direction:column;gap:12px"></div>
+  </section>
+
+  <section class="card" aria-labelledby="suggh">
+    <div class="row" style="justify-content:space-between"><h2 id="suggh">Suggested blinds</h2><span class="sub" id="suggsub"></span></div>
+    <div id="suggs" style="display:flex;flex-direction:column;gap:10px"></div>
+  </section>
+
+  <section class="card" id="minesec" aria-labelledby="mineh" hidden>
+    <h2 id="mineh">Your blinds</h2>
+    <div id="mines" style="display:flex;flex-direction:column;gap:10px"></div>
+  </section>
+
+  <section class="card" aria-labelledby="linesh">
+    <div class="row" style="justify-content:space-between"><h2 id="linesh">Lines</h2><span class="sub" id="elevtxt"></span></div>
+    <div class="plist" id="llist"></div>
+  </section>
+
+  <section class="card" aria-labelledby="ptsh">
+    <div class="row" style="justify-content:space-between"><h2 id="ptsh">Points</h2><span class="status" id="status"></span></div>
+    <div class="plist" id="plist"></div>
+  </section>
+
+  <p class="foot">Suggestions follow rules of thumb: sit downwind or crosswind of deer travel, never between deer and their bedding, within shooting range, and walk in from the downwind side. They don't know your terrain or cover. Check legal hours and rules for your zone before you hunt.<br>Privacy: this app has no server and is blocked from making network requests. Points, tracks and sightings live in this phone's browser storage until you export or share them. Clearing Chrome's site data erases them, so save a backup now and then.</p>
+</div>
+
+<script src="obf.js"></script>
+<script src="imagery.js"></script>
+<script>
+(function(){
+"use strict";
+const TZ="America/Toronto";
+const TYPES={
+  camera:{label:"Trail camera"}, scrape:{label:"Scrape / rub"}, bedding:{label:"Bedding area",radius:80},
+  field:{label:"Field / feeding",radius:100}, crossing:{label:"Crossing / funnel"}, drainage:{label:"Wet spot / spring"},
+  bait:{label:"Bait / salt"}, access:{label:"Access / parking"}, blind:{label:"My blind"}, other:{label:"Other"}
+};
+const ROLES={trail:"Deer trail",creek:"Creek / stream",ravine:"Ravine / steep draw",water:"Pond / lake",wetland:"Wetland",woods:"Woods",open:"Open ground",route:"My walking route",contour:"Contour line",other:"Other line"};
+function guessRole(name){const n=(name||"").toLowerCase();
+  if(/creek|stream|brook|river|ruisseau|riviere|rivière/.test(n))return"creek";
+  if(/ravine|gully|gulch|draw|ditch|coulee|ravin/.test(n))return"ravine";
+  if(/walk|route|access|path in|way in|drive|road/.test(n))return"route";
+  if(/trail|run|deer/.test(n))return"trail";
+  return"trail"}
+function normTrack(t,i){
+  if(Array.isArray(t))return{id:uid(),name:"Trail "+((i||0)+1),role:"trail",flow:"auto",pts:t};
+  const o={id:t.id||uid(),name:t.name||"Line",role:ROLES[t.role]?t.role:"trail",flow:t.flow||"auto",pts:Array.isArray(t.pts)?t.pts:[]};if(t.src)o.src=t.src;if(Array.isArray(t.holes))o.holes=t.holes;if(Array.isArray(t.segs))o.segs=t.segs;return o;
+}
+const KINDS={bigbuck:{label:"Big buck",w:4}, buck:{label:"Young buck",w:2}, doe:{label:"Doe",w:1.5}, bear:{label:"Black bear",w:0}, other:{label:"Other deer",w:1}};
+const DIRS=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+const norm=a=>((a%360)+360)%360;
+const angDiff=(a,b)=>{const d=Math.abs(norm(a)-norm(b));return d>180?360-d:d};
+const compass=b=>DIRS[Math.round(norm(b)/22.5)%16];
+
+/* ---------- state ---------- */
+let state=null;
+let origin={lat:45.8,lon:-76.25};
+let view={cx:0,cy:0,k:0.5};
+let ui={mode:null,selPoi:null,selSugg:null,addType:"camera",sec:null,secPick:null,selSafety:null};
+let suggCache=[];
+let IMGLAYER=null;
+
+function toXY(lat,lon){return{x:(lon-origin.lon)*Math.cos(rad(origin.lat))*111320,y:(lat-origin.lat)*110540}}
+function toLL(x,y){return{lat:origin.lat+y/110540,lon:origin.lon+x/(Math.cos(rad(origin.lat))*111320)}}
+
+function exampleState(){
+  const o={lat:45.8,lon:-76.25}; origin=o;
+  const P=(x,y)=>toLL(x,y);
+  const poi=(type,name,x,y,extra)=>Object.assign({id:uid(),type,name,...P(x,y),sightings:[]},extra||{});
+  const pt=(x,y,z)=>{const p=P(x,y);return[+p.lat.toFixed(6),+p.lon.toFixed(6),z]};
+  const trail=[],creek=[],rim=[],walk=[];
+  for(let y=430;y>=-420;y-=30)trail.push(pt(-150+Math.sin(y/90)*18,y,183+Math.sin(y/140)*2));
+  for(let y=-420;y<=430;y+=30)creek.push(pt(-75+Math.sin(y/70)*10,y,165-(y+420)/850*6));
+  for(let y=-400;y<=410;y+=40)rim.push(pt(-25+Math.cos(y/80)*8,y,179));
+  [[560,-330],[470,-250],[400,-160],[360,-60],[330,10]].forEach(([x,y],i)=>walk.push(pt(x,y,187-i)));
+  return{v:3,example:true,safety:[],wind:292.5,session:"AM",date:"2026-11-07",maxShot:150,
+    tracks:[
+      {id:uid(),name:"Deer trail",role:"trail",flow:"auto",pts:trail},
+      {id:uid(),name:"Creek",role:"creek",flow:"auto",pts:creek},
+      {id:uid(),name:"Ravine east rim",role:"other",flow:"auto",pts:rim},
+      {id:uid(),name:"Walk-in from truck",role:"route",flow:"auto",pts:walk}
+    ],
+    pois:[
+      poi("camera","F1",-150,300,{facing:90,sightings:[{kind:"buck",from:"07:00",to:"10:00"},{kind:"bear",from:"07:00",to:"10:00"}]}),
+      poi("scrape","Scrapes (4 trees)",-118,292),
+      poi("camera","A2",-145,55),
+      poi("camera","A1",-150,-200,{facing:90,sightings:[{kind:"doe",from:"16:00",to:"16:30"}]}),
+      poi("crossing","X1",-45,250),
+      poi("crossing","X2",-45,45),
+      poi("bedding","Bedding",80,70,{radius:90}),
+      poi("field","F2 field",270,60,{radius:110}),
+      poi("camera","F2",255,40,{facing:270,sightings:[{kind:"bigbuck",from:"00:00",to:"03:00"}]}),
+      poi("access","Truck",560,-330)
+    ]};
+}
+function emptyState(){const s=exampleState();s.example=false;s.tracks=[];s.pois=[];s.safety=[];return s}
+
+function recomputeOrigin(){
+  const pts=[];state.pois.forEach(p=>pts.push([p.lat,p.lon]));state.tracks.forEach(t=>t.pts.forEach(q=>pts.push(q)));
+  if(!pts.length)return;
+  let a=90,b=-90,c=180,d=-180;pts.forEach(([la,lo])=>{a=Math.min(a,la);b=Math.max(b,la);c=Math.min(c,lo);d=Math.max(d,lo)});
+  origin={lat:(a+b)/2,lon:(c+d)/2};
+}
+
+/* ---------- persistence (on this device only) ---------- */
+let saveT=null;
+function setStatus(t){$("status").textContent=t}
+function scheduleSave(){clearTimeout(saveT);saveT=setTimeout(save,600)}
+function save(){
+  try{localStorage.setItem("standplanner.v1",JSON.stringify(state));setStatus("Saved on this phone")}
+  catch(e){setStatus("Couldn't save. Phone storage may be full.")}
+}
+async function keepStorage(){
+  try{if(navigator.storage&&navigator.storage.persist){const ok=await navigator.storage.persisted()||await navigator.storage.persist();if(!ok)setStatus("Saved on this phone. Back up with Export now and then.")}}catch(e){}
+}
+
+/* ---------- sun ---------- */
+function sunTimes(dateStr,lat,lon){
+  const [Y,M,D]=dateStr.split("-").map(Number);
+  const start=Date.UTC(Y,0,1),day=Math.floor((Date.UTC(Y,M-1,D)-start)/864e5)+1;
+  const g=2*Math.PI/365*(day-1);
+  const eq=229.18*(0.000075+0.001868*Math.cos(g)-0.032077*Math.sin(g)-0.014615*Math.cos(2*g)-0.040849*Math.sin(2*g));
+  const dec=0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)+0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g);
+  const ha=deg(Math.acos(Math.cos(rad(90.833))/(Math.cos(rad(lat))*Math.cos(dec))-Math.tan(rad(lat))*Math.tan(dec)));
+  const base=Date.UTC(Y,M-1,D);
+  const rise=new Date(base+(720-4*(lon+ha)-eq)*6e4), set=new Date(base+(720-4*(lon-ha)-eq)*6e4);
+  return{rise:localMin(rise),set:localMin(set)};
+}
+function localMin(d){
+  try{const p=new Intl.DateTimeFormat("en-CA",{timeZone:TZ,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(d);
+    const h=+p.find(x=>x.type==="hour").value,m=+p.find(x=>x.type==="minute").value;return h*60+m}
+  catch(e){return d.getHours()*60+d.getMinutes()}
+}
+const fmtMin=m=>{m=((Math.round(m)%1440)+1440)%1440;return Math.floor(m/60)+":"+String(m%60).padStart(2,"0")};
+const parseT=s=>{const m=/^(\d{1,2}):(\d{2})/.exec(s||"");return m?(+m[1])*60+(+m[2]):null};
+function intervals(a,b){a=((a%1440)+1440)%1440;b=((b%1440)+1440)%1440;return a<=b?[[a,b]]:[[a,1440],[0,b]]}
+function overlaps(a,b,c,d){const A=intervals(a,b),B=intervals(c,d);return A.some(x=>B.some(y=>x[0]<=y[1]&&y[0]<=x[1]))}
+
+/* ---------- model ---------- */
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function bearing(from,to){return norm(deg(Math.atan2(to.x-from.x,to.y-from.y)))}
+const sec16=b=>Math.round(norm(b)/22.5)%16;
+function unsafeAt(C){
+  if(C._u!==undefined)return C._u;let u=null;
+  for(const s of (state.safety||[])){if(!s.dirs||!s.dirs.length)continue;const p=toXY(s.lat,s.lon);if(Math.hypot(C.x-p.x,C.y-p.y)>(s.r||250))continue;u=u||new Array(16).fill(false);s.dirs.forEach(i=>u[i]=true)}
+  if(C.blindUnsafe&&C.blindUnsafe.length){u=u||new Array(16).fill(false);C.blindUnsafe.forEach(i=>u[i]=true)}
+  C._u=u;return u;
+}
+function trackPieces(t){
+  const n=t.pts.length;
+  if(n<2||!(t.role==="trail"||t.role==="route"||t.role==="other")||!(t.segs&&t.segs.length))return[{role:t.role,pts:t.pts,a:0,b:n-1,name:t.name,id:t.id}];
+  const ek=new Array(n-1).fill(t.role);
+  for(const sg of t.segs){const r=sg.kind==="deer"?"trail":sg.kind==="human"?"route":t.role;for(let e=Math.max(0,sg.a);e<Math.min(n-1,sg.b);e++)ek[e]=r}
+  const out=[];let a=0;
+  for(let e=1;e<=n-1;e++){if(e===n-1||ek[e]!==ek[a]){out.push({role:ek[a],a,b:e,pts:t.pts.slice(a,e+1),name:t.name,id:t.id});a=e}}
+  return out;
+}
+function allPieces(){const out=[];state.tracks.forEach(t=>trackPieces(t).forEach(pc=>out.push(pc)));return out}
+function segDist(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,L=dx*dx+dy*dy;let t=L?((p.x-a.x)*dx+(p.y-a.y)*dy)/L:0;const tc=Math.max(0,Math.min(1,t));return{d:Math.hypot(p.x-(a.x+tc*dx),p.y-(a.y+tc*dy)),t}}
+
+/* ---------- elevation (from GPX heights) ---------- */
+let ELEV=null;
+function buildElev(){
+  const raw=[];
+  const hasContours=state.tracks.some(t=>t.role==="contour"&&t.pts.some(q=>q.length>2));
+  state.tracks.filter(t=>!hasContours||t.role==="contour").forEach(t=>t.pts.forEach(q=>{if(q.length>2&&q[2]!=null&&isFinite(q[2])){const p=toXY(q[0],q[1]);raw.push({x:p.x,y:p.y,z:+q[2]})}}));
+  if(!hasContours)state.pois.forEach(p=>{if(p.ele!=null&&isFinite(p.ele)){const q=toXY(p.lat,p.lon);raw.push({x:q.x,y:q.y,z:+p.ele})}});
+  if(raw.length<6)return null;
+  const seen=new Map(),S=[];
+  for(const s of raw){const k=Math.round(s.x/15)+","+Math.round(s.y/15);if(seen.has(k)){const o=seen.get(k);o.z=(o.z*o.n+s.z)/(o.n+1);o.n++}else{const o={x:s.x,y:s.y,z:s.z,n:1};seen.set(k,o);S.push(o)}}
+  let zmin=1e9,zmax=-1e9,x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  S.forEach(s=>{zmin=Math.min(zmin,s.z);zmax=Math.max(zmax,s.z);x0=Math.min(x0,s.x);x1=Math.max(x1,s.x);y0=Math.min(y0,s.y);y1=Math.max(y1,s.y)});
+  const R=260;x0-=R;y0-=R;x1+=R;y1+=R;
+  let cell=40;while((x1-x0)/cell*(y1-y0)/cell>22000)cell*=1.5;
+  const nx=Math.ceil((x1-x0)/cell)+1,ny=Math.ceil((y1-y0)/cell)+1,g=new Float32Array(nx*ny).fill(NaN);
+  const B=new Map(),bk=(x,y)=>Math.floor(x/R)+","+Math.floor(y/R);
+  S.forEach(s=>{const k=bk(s.x,s.y);(B.get(k)||B.set(k,[]).get(k)).push(s)});
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){
+    const x=x0+i*cell,y=y0+j*cell,bx=Math.floor(x/R),by=Math.floor(y/R);let sw=0,sz=0;
+    for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const L=B.get((bx+a)+","+(by+b));if(!L)continue;
+      for(const s of L){const d2=(s.x-x)**2+(s.y-y)**2;if(d2>R*R)continue;const w=1/(d2+400);sw+=w;sz+=w*s.z}}
+    if(sw>0)g[j*nx+i]=sz/sw;
+  }
+  return{x0,y0,cell,nx,ny,g,zmin,zmax,n:raw.length,src:hasContours?"contours":"tracks"};
+}
+function elevAt(E,x,y){
+  if(!E)return null;const fi=(x-E.x0)/E.cell,fj=(y-E.y0)/E.cell,i=Math.floor(fi),j=Math.floor(fj);
+  if(i<0||j<0||i>=E.nx-1||j>=E.ny-1)return null;
+  const v=(a,b)=>E.g[b*E.nx+a],q=[v(i,j),v(i+1,j),v(i,j+1),v(i+1,j+1)];
+  if(q.some(isNaN)){const ok=q.filter(z=>!isNaN(z));return ok.length?ok.reduce((s,z)=>s+z,0)/ok.length:null}
+  const tx=fi-i,ty=fj-j;return q[0]*(1-tx)*(1-ty)+q[1]*tx*(1-ty)+q[2]*(1-tx)*ty+q[3]*tx*ty;
+}
+function slopeAt(E,x,y){
+  if(!E)return null;const h=35,e=elevAt(E,x+h,y),w=elevAt(E,x-h,y),n=elevAt(E,x,y+h),s=elevAt(E,x,y-h);
+  if([e,w,n,s].some(z=>z==null))return null;
+  const gx=(e-w)/(2*h),gy=(n-s)/(2*h),grade=Math.hypot(gx,gy)*100;
+  if(grade<2)return null;
+  return{down:norm(deg(Math.atan2(-gx,-gy))),grade};
+}
+function nearestOnLine(C,xy){
+  let best={d:1e9,i:0,x:xy[0].x,y:xy[0].y};
+  for(let i=1;i<xy.length;i++){const a=xy[i-1],b=xy[i],s=segDist(C,a,b);if(s.d<best.d){const t=Math.max(0,Math.min(1,s.t));best={d:s.d,i:i-1,x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t}}}
+  return best;
+}
+function waterLines(){
+  return state.tracks.filter(t=>(t.role==="creek"||t.role==="ravine"||t.role==="water"||t.role==="wetland")&&t.pts.length>1).map(t=>{
+    let xy=t.pts.map(q=>toXY(q[0],q[1])),known=false,fwd=true,src="";
+    const pool=t.role==="water"||t.role==="wetland";
+    if(pool){return{id:t.id,name:t.name,role:t.role,xy,flowKnown:false,src:"",pool:true}}
+    if(t.flow==="fwd"){known=true;src="set"}else if(t.flow==="rev"){known=true;fwd=false;src="set"}
+    else if(t.flow==="map"){known=true;src="map";
+      const za=elevAt(ELEV,xy[0].x,xy[0].y),zb=elevAt(ELEV,xy[xy.length-1].x,xy[xy.length-1].y);
+      if(za!=null&&zb!=null&&zb-za>=3){fwd=false;src="elevation"}}
+    else{
+      const zOf=k=>{const q=t.pts[k];if(q.length>2&&q[2]!=null&&isFinite(q[2]))return +q[2];return elevAt(ELEV,xy[k].x,xy[k].y)};
+      const n=Math.min(3,Math.floor(t.pts.length/2)),avg=ks=>{const v=ks.map(zOf).filter(z=>z!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+      const za=avg([...Array(n).keys()]),zb=avg([...Array(n).keys()].map(k=>t.pts.length-1-k));
+      if(za!=null&&zb!=null&&Math.abs(za-zb)>=2){known=true;fwd=za>zb;src="elevation"}
+    }
+    if(!fwd)xy=xy.slice().reverse();
+    return{id:t.id,name:t.name,role:t.role,xy,flowKnown:known,src};
+  });
+}
+function coverModel(){
+  // Rasterise woods and open-ground areas into a 10 m grid. Woods tiles from OsmAnd share edges,
+  // so working on a filled grid means only real woods/clearing boundaries count as edges.
+  const polys=state.tracks.filter(t=>(t.role==="woods"||t.role==="open")&&t.pts.length>2)
+    .map(t=>({role:t.role,rings:[t.pts,...(t.holes||[])].map(r=>r.map(q=>toXY(q[0],q[1]))),holes:(t.holes||[]).map(h=>h.map(q=>toXY(q[0],q[1])))}));
+  if(!polys.length)return null;
+  let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;polys.forEach(p=>p.rings[0].forEach(q=>{x0=Math.min(x0,q.x);x1=Math.max(x1,q.x);y0=Math.min(y0,q.y);y1=Math.max(y1,q.y)}));
+  let cell=10;while((x1-x0)/cell*(y1-y0)/cell>250000)cell*=1.5;
+  const nx=Math.ceil((x1-x0)/cell)+1,ny=Math.ceil((y1-y0)/cell)+1,g=new Uint8Array(nx*ny);
+  const fill=(rings,val)=>{for(let j=0;j<ny;j++){const y=y0+(j+0.5)*cell,xs=[];
+    for(const r of rings)for(let i=0,k=r.length-1;i<r.length;k=i++){const a=r[i],b=r[k];if((a.y>y)!==(b.y>y))xs.push(a.x+(y-a.y)*(b.x-a.x)/(b.y-a.y))}
+    xs.sort((a,b)=>a-b);
+    for(let m=0;m+1<xs.length;m+=2){let i0=Math.max(0,Math.ceil((xs[m]-x0)/cell-0.5)),i1=Math.min(nx-1,Math.floor((xs[m+1]-x0)/cell-0.5));for(let i=i0;i<=i1;i++)g[j*nx+i]=val}}};
+  polys.filter(p=>p.role==="open").forEach(p=>fill(p.rings,2));
+  polys.filter(p=>p.role==="woods").forEach(p=>{p.holes.forEach(h=>fill([h],2));fill(p.rings,1)});
+  return{x0,y0,cell,nx,ny,g};
+}
+function coverCell(G,x,y){const i=Math.floor((x-G.x0)/G.cell),j=Math.floor((y-G.y0)/G.cell);if(i<0||j<0||i>=G.nx||j>=G.ny)return -1;return G.g[j*G.nx+i]}
+function coverAt(C,m){
+  if(C._cv!==undefined)return C._cv;
+  const G=m.cover;let res=null;
+  if(G){const v=coverCell(G,C.x,C.y);
+    if(v>=0){const woods=v===1;let edge=null;
+      for(let d=G.cell;d<=300&&!edge;d+=G.cell)for(let k=0;k<16;k++){const b=rad(k*22.5),x=C.x+Math.sin(b)*d,y=C.y+Math.cos(b)*d,w=coverCell(G,x,y);if(w<0)continue;if((w===1)!==woods){edge={d,x,y};break}}
+      res={where:woods?"woods":"open",edge};}}
+  C._cv=res;return res;
+}
+function thermal(C,m){
+  if(C._th)return C._th;
+  let pen=0;const notes=[];
+  const sl=slopeAt(m.elev,C.x,C.y);
+  if(sl){let worst=null;
+    for(const p of m.scent){if(p.trail)continue;const d=Math.max(0,dist(C,p)-(p.r||0)*0.5);if(d>260)continue;
+      if(angDiff(bearing(C,p),sl.down)>=35)continue;const v=p.w*0.55*(1-d/260)*Math.min(1,sl.grade/6);pen+=v;if(!worst||v>worst.v)worst={v,p}}
+    if(worst&&worst.v>0.25)notes.push({neg:true,t:"At first light and dusk, cool air slides downhill ("+compass(sl.down)+") and can carry your scent to "+worst.p.name});
+  }
+  for(const w of m.water){
+    const n=nearestOnLine(C,w.xy);
+    if(n.d<45){pen+=0.8;notes.push({neg:true,t:"Right on "+w.name+". Set the blind back from the edge"})}
+    if(n.d>250)continue;
+    if(m.elev){const zc=elevAt(m.elev,C.x,C.y),zw=elevAt(m.elev,n.x,n.y);if(zc!=null&&zw!=null&&zc<zw-1)continue}
+    if(w.pool&&n.d>150)continue;
+    const lim=w.pool?120:w.flowKnown?500:250,path=[{x:n.x,y:n.y}];let L=0;
+    for(let i=n.i+1;i<w.xy.length&&L<lim;i++){L+=dist(path[path.length-1],w.xy[i]);path.push(w.xy[i])}
+    if(!w.flowKnown){let L2=0,prev={x:n.x,y:n.y};for(let i=n.i;i>=0&&L2<lim;i--){L2+=dist(prev,w.xy[i]);prev=w.xy[i];path.unshift(w.xy[i])}}
+    const k=Math.min(n.i+1,w.xy.length-1),dir=bearing(w.xy[n.i],w.xy[k]);
+    let worst=null;
+    for(const p of m.scent){if(p.trail)continue;let dm=1e9;for(let i=1;i<path.length;i++)dm=Math.min(dm,segDist(p,path[i-1],path[i]).d);dm-=(p.r||0);
+      if(dm>70)continue;const v=p.w*0.6*(1-n.d/250);pen+=v;if(!worst||v>worst.v)worst={v,p}}
+    if(w.pool){if(worst&&worst.v>0.25)notes.push({neg:true,t:w.name+" is "+Math.round(n.d)+" m away. Cool dawn and dusk air settles into it, close to "+worst.p.name});continue}
+    if(worst&&worst.v>0.25)notes.push({neg:true,t:w.name+" is "+Math.round(n.d)+" m away. Cool dawn and dusk air sinks into it and drifts "+(w.flowKnown?compass(dir)+" downstream":"along it")+" past "+worst.p.name});
+    else if(n.d<150)notes.push({neg:false,t:w.name+" is "+Math.round(n.d)+" m away. Dawn and dusk air drains into it, clear of deer sign"});
+  }
+  C._th={pen,notes,slope:sl};return C._th;
+}
+
+function buildModel(session){
+  const sun=sunTimes(state.date,origin.lat,origin.lon);
+  const win=session==="AM"?[sun.rise-45,sun.rise+240]:[sun.set-240,sun.set+30];
+  const night=[sun.set+30,sun.rise-45];
+  const P=state.pois.map(p=>Object.assign({},p,toXY(p.lat,p.lon)));
+  const beds=P.filter(p=>p.type==="bedding").map(b=>Object.assign(b,{r:b.radius||80}));
+  const targets=[],scent=[],notes=[];
+  let bear=false;
+  const bait=P.some(p=>p.type==="bait");
+  for(const p of P){
+    const sp=(p.type==="camera"&&p.facing!=null)?{x:p.x+Math.sin(rad(p.facing))*12,y:p.y+Math.cos(rad(p.facing))*12}:{x:p.x,y:p.y};
+    if(p.type==="bedding"){scent.push({x:p.x,y:p.y,w:4,r:p.r,name:p.name,bed:true});continue}
+    let base=0,why="";
+    if(p.type==="scrape"){base=1.5;why="Scrapes at "+p.name}
+    else if(p.type==="crossing"){base=1.5;why="Crossing "+p.name}
+    else if(p.type==="field"){base=session==="AM"?0.8:1.2;why=p.name+(session==="AM"?" (morning feeding)":" (evening feeding)")}
+    else if(p.type==="bait"){base=session==="AM"?0.7:1;why="Bait at "+p.name}
+    const range=p.type==="field"?state.maxShot+(p.radius||100):state.maxShot;
+    if(base>0)targets.push({x:p.x,y:p.y,w:base,why,range,name:p.name});
+    let deer=base;
+    for(const s of (p.sightings||[])){
+      const k=KINDS[s.kind]; if(!k)continue;
+      if(s.kind==="bear"){bear=true;continue}
+      const a=parseT(s.from),b=parseT(s.to);if(a==null||b==null)continue;
+      deer=Math.max(deer,k.w);
+      const when=s.from+"–"+s.to;
+      if(overlaps(a,b,win[0],win[1])){targets.push({x:sp.x,y:sp.y,w:k.w,why:k.label+" at "+p.name+", "+when,range,name:p.name});}
+      else if(overlaps(a,b,night[0],night[1])){
+        let best=null,bd=1000;for(const bd0 of beds){const d=dist(p,bd0);if(d<bd){bd=d;best=bd0}}
+        if(best&&bd>best.r){
+          const ux=(p.x-best.x)/bd,uy=(p.y-best.y)/bd,off=best.r+40;
+          targets.push({x:best.x+ux*off,y:best.y+uy*off,w:k.w*0.85,range:state.maxShot,name:p.name,bed:best,src:p,transition:true,
+            why:k.label+" at "+p.name+" overnight, "+(session==="AM"?"heading to "+best.name+" at first light":"leaving "+best.name+" at dusk")});
+        } else targets.push({x:sp.x,y:sp.y,w:k.w*0.3,why:k.label+" at "+p.name+" at night only",range,name:p.name});
+      } else targets.push({x:sp.x,y:sp.y,w:k.w*0.5,why:k.label+" at "+p.name+", midday",range,name:p.name});
+    }
+    if(deer>0)scent.push({x:p.x,y:p.y,w:Math.min(deer,2.5),r:p.type==="field"?(p.radius||100):0,name:p.name});
+  }
+  targets.filter(t=>t.transition).forEach(t=>scent.push({x:t.x,y:t.y,w:2,r:0,name:"the route into "+t.bed.name}));
+  const pcs=allPieces();
+  {
+    for(const tr of pcs.filter(t=>t.role==="trail")){
+      const pts=tr.pts.map(q=>toXY(q[0],q[1]));let acc=0,last=null,n=0;
+      for(const q of pts){if(last){acc+=dist(q,last)}last=q;if(acc>=90||n===0){acc=0;n++;if(n>40)break;
+        targets.push({x:q.x,y:q.y,w:0.35,why:"the deer trail",range:state.maxShot,name:"trail",trail:true});scent.push({x:q.x,y:q.y,w:0.4,r:0,name:"the deer trail",trail:true})}}
+    }
+  }
+  if(bear&&bait)notes.push("A bear is using the area. Bait will draw it too.");
+  return{targets,scent,beds,fields:P.filter(p=>p.type==="field").map(f=>Object.assign(f,{r:f.radius||100})),drain:P.filter(p=>p.type==="drainage"),water:waterLines(),elev:ELEV,cover:coverModel(),access:P.find(p=>p.type==="access"),accesses:P.filter(p=>p.type==="access"),
+    humans:pcs.filter(pc=>pc.role==="route").map(pc=>({name:pc.name,xy:pc.pts.map(q=>toXY(q[0],q[1]))})),blinds:P.filter(p=>p.type==="blind"),sun,notes,bear};
+}
+
+function score(C,m,wind,detail){
+  const wf=wind,wt=norm(wind+180);
+  let cover=0,pen=0;const cov=[],neg=[];
+  const U=m._noSafe?null:unsafeAt(C);
+  let sx=0,sy=0,rx=0,ry=0,blocked=0,trailN=0;
+  for(const t of m.targets){
+    const d=dist(C,t);if(d>t.range*1.4)continue;
+    const fr=d<35?0.2:d<=t.range?1:1-(d-t.range)/(0.4*t.range);
+    const bt=bearing(C,t),a=angDiff(bt,wf);
+    const wfac=a<=50?1:a<=100?0.75:a<=140?0.2:0;
+    const v=t.w*fr*wfac;if(v<=0)continue;
+    rx+=Math.sin(rad(bt))*v;ry+=Math.cos(rad(bt))*v;
+    if(U&&U[sec16(bt)]){blocked+=v;continue}
+    cover+=v;sx+=Math.sin(rad(bt))*v;sy+=Math.cos(rad(bt))*v;
+    if(t.trail){if(d<=t.range&&a<=100)trailN++;continue}
+    if(detail&&v>0.15)cov.push({v,t,d,bt,rel:a<=50?"upwind of you":"crosswind"});
+  }
+  if(detail&&trailN>=2)cov.push({v:0.5,t:{why:"the deer trail",name:"the deer trail"},d:null,rel:"in range"});
+  const face=(Math.abs(sx)+Math.abs(sy)>1e-6)?norm(deg(Math.atan2(sx,sy))):null;
+  const rawFace=(Math.abs(rx)+Math.abs(ry)>1e-6)?norm(deg(Math.atan2(rx,ry))):null;
+  const rawUnsafe=!!(U&&rawFace!=null&&U[sec16(rawFace)]);
+  if(rawUnsafe){pen+=6;if(detail)neg.push("Its main shot faces "+compass(rawFace)+", which you marked unsafe. Move it or face it elsewhere")}
+  else if(U&&blocked>0.3&&detail)neg.push("Some deer activity is in directions you marked unsafe; those shots were left out");
+  let scentWorst=null;
+  for(const p of m.scent){
+    const d=Math.max(0,dist(C,p)-(p.r||0)*0.6);if(d>600)continue;
+    const a=angDiff(bearing(C,p),wt);if(a>=40)continue;
+    const v=p.w*(1-d/600)*1.6*(a<20?1:0.6);pen+=v;
+    if(!scentWorst||v>scentWorst.v)scentWorst={v,p};
+  }
+  if(detail&&scentWorst&&scentWorst.v>0.4)neg.push("Wind carries your scent toward "+scentWorst.p.name);
+  for(const b of m.beds){
+    const de=dist(C,b)-b.r;
+    if(de<0){pen+=30;if(detail)neg.push("Inside "+b.name)}
+    else if(de<120){pen+=4*(1-de/120);if(detail)neg.push("Only "+Math.round(de)+" m from "+b.name)}
+  }
+  for(const t of m.targets){if(!t.transition)continue;const s=segDist(C,t.src,t.bed);if(s.d<45&&s.t>0.05&&s.t<0.95){pen+=1.2*t.w;if(detail)neg.push("Sits on the route between "+t.src.name+" and "+t.bed.name)}}
+  for(const f of m.fields){const inside=f.r-dist(C,f);if(inside>15){pen+=1.2+Math.min(inside,80)/80;if(detail)neg.push("Out in the open in "+f.name+"; set the blind back on the edge")}}
+  for(const dr of m.drain){const d=dist(C,dr);if(d<45){pen+=0.8;if(detail)neg.push("Close to "+dr.name+"; dawn and dusk air sinks into low wet ground")}}
+  const th=thermal(C,m);pen+=th.pen;if(detail)th.notes.forEach(n=>{if(n.neg)neg.push(n.t)});
+  const cv=coverAt(C,m);if(cv&&cv.where==="open"&&cv.edge&&cv.edge.d<=120){pen+=0.6;if(detail)neg.push("Outside the mapped woods. Tuck the blind into the tree line about "+Math.round(cv.edge.d)+" m to the "+compass(bearing(C,cv.edge)))}
+  if(m.access){
+    for(const b of m.beds){if(segDist(b,m.access,C).d<b.r+80){pen+=3;if(detail)neg.push("Straight walk from "+m.access.name+" passes "+b.name+"; go around it");break}}
+  }
+  return{s:cover-pen,cover,pen,cov,neg,face,rawFace,rawUnsafe,blocked,unsafe:U};
+}
+
+function candidates(m){
+  const out=[];
+  for(const t of m.targets){
+    if(t.trail)continue;
+    const ds=[50,90,130,170,220];if(t.range>state.maxShot+20){ds.push(t.range*0.8,t.range)}
+    for(const d of ds){if(d>t.range*1.2)continue;for(let i=0;i<24;i++){const b=rad(i*15);out.push({x:t.x+Math.sin(b)*d,y:t.y+Math.cos(b)*d})}}
+  }
+  const real=m.targets.filter(t=>!t.trail);
+  for(let i=0;i<real.length;i++)for(let j=i+1;j<real.length;j++){if(dist(real[i],real[j])<350)out.push({x:(real[i].x+real[j].x)/2,y:(real[i].y+real[j].y)/2})}
+  if(!real.length&&m.targets.length){m.targets.forEach((t,i)=>{if(i%2)return;for(let k=0;k<12;k++){const b=rad(k*30);out.push({x:t.x+Math.sin(b)*80,y:t.y+Math.cos(b)*80})}})}
+  return out;
+}
+
+function pick(m,cands,wind){
+  const scored=cands.map(c=>({c,r:score(c,m,wind,false)})).filter(o=>o.r.s>0.6&&o.r.cover>0.5&&!o.r.rawUnsafe).sort((a,b)=>b.r.s-a.r.s);
+  const picks=[];for(const o of scored){if(picks.every(p=>dist(p.c,o.c)>140))picks.push(o);if(picks.length>=3)break}
+  return picks;
+}
+
+function walkIn(C,m,wind){
+  const wt=norm(wind+180);let best=null;
+  for(let i=0;i<8;i++){
+    const b=i*45,A={x:C.x+Math.sin(rad(b))*250,y:C.y+Math.cos(rad(b))*250};
+    let s=Math.cos(rad(angDiff(b,wt)));
+    for(const t of m.targets){if(t.trail)continue;if(segDist(t,A,C).d<60)s-=0.7*Math.min(t.w,2)}
+    for(const bd of m.beds){if(segDist(bd,A,C).d<bd.r+80)s-=3}
+    for(const h of m.humans){const n=nearestOnLine(C,h.xy);if(n.d<250)s+=0.6*Math.max(0,Math.cos(rad(angDiff(b,bearing(C,n)))))}
+    if(!best||s>best.s)best={b,s};
+  }
+  return compass(best.b);
+}
+
+/* ---------- walk-in route (grid search from the access point to the blind) ---------- */
+function astar(cost,nx,ny,s,g){
+  const N=nx*ny,gs=new Float32Array(N).fill(Infinity),prev=new Int32Array(N).fill(-1),closed=new Uint8Array(N),heap=[];
+  const push=(i,f)=>{heap.push([f,i]);let k=heap.length-1;while(k>0){const q=(k-1)>>1;if(heap[q][0]<=heap[k][0])break;[heap[q],heap[k]]=[heap[k],heap[q]];k=q}};
+  const pop=()=>{const top=heap[0],last=heap.pop();if(heap.length){heap[0]=last;let k=0;for(;;){const l=2*k+1,r=l+1;let mn=k;if(l<heap.length&&heap[l][0]<heap[mn][0])mn=l;if(r<heap.length&&heap[r][0]<heap[mn][0])mn=r;if(mn===k)break;[heap[mn],heap[k]]=[heap[k],heap[mn]];k=mn}}return top};
+  const gx=g%nx,gy=(g/nx)|0,h=i=>Math.hypot(i%nx-gx,((i/nx)|0)-gy)*0.3;
+  const D=[[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.4142],[1,-1,1.4142],[-1,1,1.4142],[-1,-1,1.4142]];
+  gs[s]=0;push(s,h(s));
+  while(heap.length){const i=pop()[1];if(closed[i])continue;closed[i]=1;if(i===g)break;const x=i%nx,y=(i/nx)|0;
+    for(const [dx,dy,l] of D){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=nx||Y>=ny)continue;const j=Y*nx+X;if(closed[j])continue;
+      const c=gs[i]+l*(cost[i]+cost[j])/2;if(c<gs[j]){gs[j]=c;prev[j]=i;push(j,c+h(j))}}}
+  if(g!==s&&prev[g]<0)return null;const path=[];for(let i=g;i>=0;i=prev[i]){path.push(i);if(i===s)break}return path.reverse();
+}
+function planRoute(m,A,B,wind){
+  const pad=250,x0=Math.min(A.x,B.x)-pad,x1=Math.max(A.x,B.x)+pad,y0=Math.min(A.y,B.y)-pad,y1=Math.max(A.y,B.y)+pad;
+  let cell=12;while((x1-x0)/cell*(y1-y0)/cell>22000)cell*=1.25;
+  const nx=Math.ceil((x1-x0)/cell)+1,ny=Math.ceil((y1-y0)/cell)+1,cost=new Float32Array(nx*ny);
+  const wt=norm(wind+180),deer=m.scent.filter(p=>!p.trail),tg=m.targets.filter(t=>!t.trail);
+  const ponds=m.water.filter(w=>w.pool&&w.role==="water").map(w=>{let a=1e9,b=-1e9,c=1e9,d=-1e9;w.xy.forEach(q=>{a=Math.min(a,q.x);b=Math.max(b,q.x);c=Math.min(c,q.y);d=Math.max(d,q.y)});return{xy:w.xy,a,b,c,d}});
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const P={x:x0+i*cell,y:y0+j*cell};let c=1;
+    for(const b of m.beds){const d=dist(P,b)-b.r;if(d<0)c+=60;else if(d<90)c+=12*(1-d/90)}
+    for(const t of tg){const d=dist(P,t);if(d<70)c+=3*Math.min(t.w,2)*(1-d/70)}
+    for(const p of deer){const d=Math.max(0,dist(P,p)-(p.r||0)*0.6);if(d>350)continue;if(angDiff(bearing(P,p),wt)<35)c+=p.w*0.8*(1-d/350)}
+    for(const f of m.fields)if(dist(P,f)<f.r)c+=1.5;
+    for(const q of ponds)if(P.x>q.a&&P.x<q.b&&P.y>q.c&&P.y<q.d&&inRing(P,q.xy))c+=40;
+    cost[j*nx+i]=c}
+  const idx=(x,y)=>{const i=Math.round((x-x0)/cell),j=Math.round((y-y0)/cell);return(i<0||j<0||i>=nx||j>=ny)?-1:j*nx+i};
+  const onPath=new Uint8Array(nx*ny);
+  for(const h of m.humans)for(let k=1;k<h.xy.length;k++){const a=h.xy[k-1],b=h.xy[k],L=dist(a,b),n=Math.max(1,Math.ceil(L/(cell/2)));
+    for(let t=0;t<=n;t++){const q=idx(a.x+(b.x-a.x)*t/n,a.y+(b.y-a.y)*t/n);if(q>=0&&!onPath[q]){onPath[q]=1;cost[q]*=0.35}}}
+  const si=idx(A.x,A.y),gi=idx(B.x,B.y);if(si<0||gi<0)return null;
+  const path=astar(cost,nx,ny,si,gi);if(!path)return null;
+  let pts=path.map(i=>{const ll=toLL(x0+(i%nx)*cell,y0+((i/nx)|0)*cell);return[ll.lat,ll.lon]});
+  pts[0]=(()=>{const ll=toLL(A.x,A.y);return[ll.lat,ll.lon]})();pts[pts.length-1]=(()=>{const ll=toLL(B.x,B.y);return[ll.lat,ll.lon]})();
+  const onH=path.filter(i=>onPath[i]).length/path.length;
+  pts=simplify(pts,cell*0.7).map(q=>[+q[0].toFixed(6),+q[1].toFixed(6)]);
+  const xy=pts.map(q=>toXY(q[0],q[1]));let len=0;for(let k=1;k<xy.length;k++)len+=dist(xy[k-1],xy[k]);
+  let back=0,from=xy[0];for(let k=xy.length-1;k>0;k--){back+=dist(xy[k],xy[k-1]);if(back>=60){from=xy[k-1];break}}
+  return{pts,len,onHuman:onH,approach:compass(bearing(B,from))};
+}
+
+function goodWinds(C,m){
+  const res=[];let mx=0;
+  for(let i=0;i<16;i++){const r=score(C,m,i*22.5,false);res.push(r.s);mx=Math.max(mx,r.s)}
+  return res.map((s,i)=>s>0.6&&s>=mx*0.5?DIRS[i]:null).filter(Boolean);
+}
+
+function explain(C,m,wind,i,kind){
+  const r=score(C,m,wind,true);
+  const why=[];
+  r.cov.sort((a,b)=>b.v-a.v).slice(0,3).forEach(o=>why.push({t:(o.t.why.charAt(0).toUpperCase()+o.t.why.slice(1))+(o.d!=null?": "+Math.round(o.d)+" m, "+o.rel:"")}));
+  const wt=norm(wind+180);
+  if(!r.neg.some(n=>n.startsWith("Wind")))why.push({t:"Your scent drifts "+compass(wt)+", clear of deer sign"+(m.beds.length?" and bedding":"")});
+  r.neg.forEach(n=>why.push({t:n,neg:true}));
+  const th=thermal(C,m);
+  th.notes.filter(n=>!n.neg).slice(0,1).forEach(n=>why.push({t:n.t}));
+  if(th.slope)why.push({t:"Ground falls to the "+compass(th.slope.down)+" here, about "+Math.round(th.slope.grade)+" m per 100 m"});
+  const cv=coverAt(C,m);if(cv&&cv.where==="woods")why.push({t:cv.edge?"In the woods, "+Math.round(cv.edge.d)+" m from open ground to the "+compass(bearing(C,cv.edge)):"In the woods, well back from open ground"});
+  const tname=t=>t.transition?"the route into "+t.bed.name:t.trail?"the deer trail":(t.name||"deer sign");
+  let faceTxt=null;
+  if(r.face!=null){const names=[...new Set(r.cov.filter(o=>o.bt!=null&&angDiff(o.bt,r.face)<=60).sort((a,b)=>b.v-a.v).map(o=>tname(o.t)))].slice(0,2);
+    faceTxt="Face "+compass(r.face)+(names.length?", toward "+names.join(" and "):"")}
+  const U=r.unsafe,unsafeList=U?DIRS.filter((_,k)=>U[k]):[];
+  let route=null,acc=null;
+  if(m.accesses.length){acc=m.accesses.reduce((a,b)=>dist(C,b)<dist(C,a)?b:a);if(dist(C,acc)>40)route=planRoute(m,acc,C,wind)}
+  let human=null;if(!route){for(const h of m.humans){const n=nearestOnLine(C,h.xy);if(n.d<250&&(!human||n.d<human.d))human={d:n.d,name:h.name,dir:compass(bearing(C,n))}}}
+  const ll=toLL(C.x,C.y);
+  return{c:C,r,why,face:r.face,faceTxt,unsafeList,route,accName:acc?acc.name:null,human,walk:walkIn(C,m,wind),winds:goodWinds(C,m),lat:ll.lat,lon:ll.lon,i,kind};
+}
+
+/* ---------- map render ---------- */
+const svg=$("map");
+function size(){const r=svg.getBoundingClientRect();return{W:r.width||360,H:r.height||400}}
+function S(x,y){const {W,H}=size();return{x:(x-view.cx)*view.k+W/2,y:H/2-(y-view.cy)*view.k}}
+function W2(sx,sy){const {W,H}=size();return{x:(sx-W/2)/view.k+view.cx,y:(H/2-sy)/view.k+view.cy}}
+function fit(){
+  const pts=[];state.pois.forEach(p=>pts.push(toXY(p.lat,p.lon)));
+  const own=state.tracks.filter(t=>t.src!=="osmand");(own.length||pts.length?own:state.tracks).forEach(t=>t.pts.forEach(q=>pts.push(toXY(q[0],q[1]))));
+  if(!pts.length){view={cx:0,cy:0,k:0.5};return}
+  let a=1e9,b=-1e9,c=1e9,d=-1e9;pts.forEach(p=>{a=Math.min(a,p.x);b=Math.max(b,p.x);c=Math.min(c,p.y);d=Math.max(d,p.y)});
+  const {W,H}=size();const w=Math.max(b-a,150),h=Math.max(d-c,150);
+  view={cx:(a+b)/2,cy:(c+d)/2,k:Math.min((W-60)/w,(H-90)/h)};
+}
+function glyph(p,s,sel){
+  const k=view.k;const ring=sel?`<circle cx="${s.x}" cy="${s.y}" r="15" fill="none" stroke="var(--orange)" stroke-width="2"/>`:"";
+  let g="";
+  switch(p.type){
+    case"camera":g=`<rect x="${s.x-7}" y="${s.y-7}" width="14" height="14" rx="2" fill="var(--card)" stroke="var(--ink)" stroke-width="1.5"/><circle cx="${s.x}" cy="${s.y}" r="3" fill="var(--ink)"/>`;break;
+    case"scrape":g=`<path d="M${s.x-6} ${s.y-6}L${s.x+6} ${s.y+6}M${s.x+6} ${s.y-6}L${s.x-6} ${s.y+6}" stroke="var(--deer)" stroke-width="3" stroke-linecap="round" fill="none"/>`;break;
+    case"bedding":g=`<circle cx="${s.x}" cy="${s.y}" r="${Math.max(10,(p.radius||80)*k)}" fill="var(--bed)" fill-opacity=".14" stroke="var(--bed)" stroke-width="1.5" stroke-dasharray="5 4"/><circle cx="${s.x}" cy="${s.y}" r="3" fill="var(--bed)"/>`;break;
+    case"field":g=`<circle cx="${s.x}" cy="${s.y}" r="${Math.max(10,(p.radius||100)*k)}" fill="var(--field)" fill-opacity=".16" stroke="var(--field)" stroke-width="1.2"/>`;break;
+    case"crossing":g=`<path d="M${s.x-8} ${s.y-3}H${s.x+8}M${s.x-8} ${s.y+3}H${s.x+8}" stroke="var(--deer)" stroke-width="2.5" stroke-linecap="round" fill="none"/>`;break;
+    case"drainage":g=`<circle cx="${s.x}" cy="${s.y}" r="6" fill="var(--water)"/><circle cx="${s.x}" cy="${s.y}" r="10" fill="none" stroke="var(--water)" stroke-width="1"/>`;break;
+    case"bait":g=`<circle cx="${s.x}" cy="${s.y}" r="6.5" fill="var(--bait)" stroke="var(--card)" stroke-width="1.5"/>`;break;
+    case"access":g=`<path d="M${s.x} ${s.y-8}L${s.x+7} ${s.y+6}H${s.x-7}Z" fill="var(--muted)"/>`;break;
+    case"blind":g=`<rect x="${s.x-8}" y="${s.y-8}" width="16" height="16" rx="3" fill="var(--card)" stroke="var(--orange)" stroke-width="2.5"/>`;break;
+    default:g=`<circle cx="${s.x}" cy="${s.y}" r="5" fill="var(--muted)"/>`;
+  }
+  const lab=`<text x="${s.x+11}" y="${s.y-9}" font-family="var(--body)" font-size="12.5" font-weight="600" fill="var(--ink)" style="paint-order:stroke;stroke:var(--paper);stroke-width:3.5px;stroke-linejoin:round">${esc(p.name)}</text>`;
+  return ring+g+lab;
+}
+let rq=0;function renderMap(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;drawMap()})}
+function drawMap(){
+  const {W,H}=size();svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  let o=`<rect width="${W}" height="${H}" fill="var(--paper)"/>`;
+  if(IMGLAYER&&IMGLAYER.url){const b=IMGLAYER.box,a=toXY(b.north,b.west),c=toXY(b.south,b.east),p1=S(a.x,a.y),p2=S(c.x,c.y);
+    o+=`<image href="${IMGLAYER.url}" x="${p1.x.toFixed(1)}" y="${p1.y.toFixed(1)}" width="${(p2.x-p1.x).toFixed(1)}" height="${(p2.y-p1.y).toFixed(1)}" preserveAspectRatio="none" opacity="${(state.imgFade??80)/100}"/>`}
+  const step=[25,50,100,200,500,1000,2000].find(s=>s*view.k>=60)||5000;
+  const tl=W2(0,0),br=W2(W,H);
+  const gop=IMGLAYER?' stroke-opacity=".25"':'';
+  for(let x=Math.ceil(tl.x/step)*step;x<br.x;x+=step){const s=S(x,0);o+=`<line x1="${s.x}" y1="0" x2="${s.x}" y2="${H}" stroke="var(--grid)" stroke-width="1"${gop}/>`}
+  for(let y=Math.ceil(br.y/step)*step;y<tl.y;y+=step){const s=S(0,y);o+=`<line x1="0" y1="${s.y}" x2="${W}" y2="${s.y}" stroke="var(--grid)" stroke-width="1"${gop}/>`}
+  // fills first
+  state.pois.filter(p=>p.type==="field"||p.type==="bedding").forEach(p=>{const q=toXY(p.lat,p.lon);o+=glyph(p,S(q.x,q.y),ui.selPoi===p.id)});
+  // downhill arrows from GPX elevation
+  if(ELEV){const sp=64;for(let sy=sp/2;sy<H;sy+=sp)for(let sx=sp/2;sx<W;sx+=sp){const w=W2(sx,sy),sl=slopeAt(ELEV,w.x,w.y);if(!sl)continue;
+    const L=Math.min(16,6+sl.grade),ax=Math.sin(rad(sl.down)),ay=-Math.cos(rad(sl.down));
+    const x1=sx-ax*L/2,y1=sy-ay*L/2,x2=sx+ax*L/2,y2=sy+ay*L/2;
+    o+=`<path d="M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}M${(x2-ax*5-ay*3.5).toFixed(1)} ${(y2-ay*5+ax*3.5).toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}L${(x2-ax*5+ay*3.5).toFixed(1)} ${(y2-ay*5-ax*3.5).toFixed(1)}" fill="none" stroke="var(--muted)" stroke-opacity=".45" stroke-width="1.2" stroke-linecap="round"/>`}}
+  const LSTYLE={trail:'stroke="var(--deer)" stroke-width="3" stroke-opacity=".6" stroke-dasharray="7 5"',creek:'stroke="var(--water)" stroke-width="3.5"',ravine:'stroke="var(--water)" stroke-width="2" stroke-dasharray="2 5" stroke-opacity=".9"',route:'stroke="var(--ink)" stroke-opacity=".55" stroke-width="2.2" stroke-dasharray="1 5"',other:'stroke="var(--muted)" stroke-width="2"',
+    water:'fill="var(--water)" fill-opacity=".22" stroke="var(--water)" stroke-width="1.2"',wetland:'fill="var(--water)" fill-opacity=".08" stroke="var(--field)" stroke-width="1.2" stroke-dasharray="3 3"',contour:'stroke="var(--deer)" stroke-width="0.8" stroke-opacity=".35"',
+    woods:'fill="var(--field)" fill-opacity=".22" fill-rule="evenodd" stroke="none"',open:'fill="var(--bait)" fill-opacity=".14" fill-rule="evenodd" stroke="none"'};
+  const order={woods:0,open:0.5,wetland:1,water:2,contour:3};
+  const tlines=state.tracks.slice().sort((a,b)=>(order[a.role]??9)-(order[b.role]??9));
+  const vb=W2(0,0),vb2=W2(W,H),pad=200;
+  for(const t of tlines){if(t.pts.length<2)continue;
+    const xy=t.pts.map(q=>toXY(q[0],q[1]));let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9;xy.forEach(p=>{mnx=Math.min(mnx,p.x);mxx=Math.max(mxx,p.x);mny=Math.min(mny,p.y);mxy=Math.max(mxy,p.y)});
+    if(mxx<vb.x-pad||mnx>vb2.x+pad||mxy<vb2.y-pad||mny>vb.y+pad)continue;
+    if(t.segs&&t.segs.length&&(t.role==="trail"||t.role==="route"||t.role==="other")){
+      for(const pc of trackPieces(t)){let d2="";pc.pts.forEach((q,i)=>{const p2=toXY(q[0],q[1]),s2=S(p2.x,p2.y);d2+=(i?"L":"M")+s2.x.toFixed(1)+" "+s2.y.toFixed(1)});
+        o+=`<path d="${d2}" fill="none" ${LSTYLE[pc.role]||LSTYLE.other} stroke-linecap="round" stroke-linejoin="round"/>`}
+      continue}
+    let d="";xy.forEach((p,i)=>{const s=S(p.x,p.y);d+=(i?"L":"M")+s.x.toFixed(1)+" "+s.y.toFixed(1)});
+    const areaRole=t.role==="water"||t.role==="wetland"||t.role==="woods"||t.role==="open";if(areaRole)d+="Z";
+    if(t.holes)t.holes.forEach(h=>{h.forEach((q,i)=>{const p=toXY(q[0],q[1]),s2=S(p.x,p.y);d+=(i?"L":"M")+s2.x.toFixed(1)+" "+s2.y.toFixed(1)});d+="Z"});
+    o+=`<path d="${d}" ${areaRole?"":'fill="none"'} ${LSTYLE[t.role]||LSTYLE.other} stroke-linecap="round" stroke-linejoin="round"/>`;
+    if(t.role==="ravine")o+=`<path d="${d}" fill="none" stroke="var(--water)" stroke-width="7" stroke-opacity=".12" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+  // flow chevrons on creeks and ravines
+  waterLines().forEach(w=>{if(!w.flowKnown)return;const s=w.xy.map(p=>S(p.x,p.y));let acc=60;
+    for(let i=1;i<s.length;i++){const a=s[i-1],b=s[i],L=Math.hypot(b.x-a.x,b.y-a.y);if(!L)continue;const ux=(b.x-a.x)/L,uy=(b.y-a.y)/L;
+      while(acc<=L){const cx=a.x+ux*acc,cy=a.y+uy*acc;o+=`<path d="M${(cx-ux*5-uy*5).toFixed(1)} ${(cy-uy*5+ux*5).toFixed(1)}L${cx.toFixed(1)} ${cy.toFixed(1)}L${(cx-ux*5+uy*5).toFixed(1)} ${(cy-uy*5-ux*5).toFixed(1)}" fill="none" stroke="var(--water)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;acc+=110}
+      acc-=L}});
+  // line labels
+  for(const t of state.tracks){if(t.pts.length<2||t.role==="route"||t.role==="contour"||t.role==="woods"||t.role==="open"||(t.src==="osmand"&&/^(Stream|Ditch|Drain|Wetland|Water|Pond)$/.test(t.name)))continue;const q=t.pts[Math.floor(t.pts.length*0.35)],p=toXY(q[0],q[1]),s=S(p.x,p.y);
+    o+=`<text x="${(s.x+8).toFixed(1)}" y="${(s.y+4).toFixed(1)}" font-family="var(--body)" font-size="11.5" font-style="italic" fill="${t.role==="trail"?"var(--deer)":"var(--water)"}" style="paint-order:stroke;stroke:var(--paper);stroke-width:3px">${esc(t.name)}</text>`}
+  // suggestion scent cones
+  const wt=norm(state.wind+180);
+  suggCache.forEach(sg=>{const s=S(sg.c.x,sg.c.y),L=260*view.k,h=35;
+    const p1={x:s.x+Math.sin(rad(wt-h))*L,y:s.y-Math.cos(rad(wt-h))*L},p2={x:s.x+Math.sin(rad(wt+h))*L,y:s.y-Math.cos(rad(wt+h))*L};
+    o+=`<path d="M${s.x} ${s.y}L${p1.x} ${p1.y}A${L} ${L} 0 0 1 ${p2.x} ${p2.y}Z" fill="var(--orange)" fill-opacity="${ui.selSugg===sg.i?0.18:0.08}"/>`});
+  // walk-in routes from the access point
+  const routeOf=[...suggCache.map(sg=>({sg,sel:ui.selSugg===sg.i})),...minesCache.map(sg=>({sg,sel:false,mine:true}))];
+  for(const {sg,sel,mine} of routeOf){if(!sg.route)continue;let d="";sg.route.pts.forEach((q,i)=>{const p2=toXY(q[0],q[1]),s2=S(p2.x,p2.y);d+=(i?"L":"M")+s2.x.toFixed(1)+" "+s2.y.toFixed(1)});
+    const op=ui.selSugg==null?0.85:sel?1:0.35;
+    o+=`<path d="${d}" fill="none" stroke="var(--paper)" stroke-width="5.5" stroke-opacity="${op*0.8}" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="var(--orange)" stroke-width="3" stroke-dasharray="0.1 7" stroke-opacity="${op}" stroke-linecap="round" stroke-linejoin="round"/>`}
+  // trail camera view
+  state.pois.filter(p=>p.type==="camera"&&p.facing!=null).forEach(p=>{const q=toXY(p.lat,p.lon),s2=S(q.x,q.y),L=Math.max(26,30*view.k),h=25;
+    const a1=rad(p.facing-h),a2=rad(p.facing+h);
+    o+=`<path d="M${s2.x} ${s2.y}L${(s2.x+Math.sin(a1)*L).toFixed(1)} ${(s2.y-Math.cos(a1)*L).toFixed(1)}A${L} ${L} 0 0 1 ${(s2.x+Math.sin(a2)*L).toFixed(1)} ${(s2.y-Math.cos(a2)*L).toFixed(1)}Z" fill="var(--ink)" fill-opacity=".14" stroke="var(--ink)" stroke-opacity=".45" stroke-width="1"/>`});
+  // unsafe shooting directions
+  const unsafeMarks=[...(state.safety||[]).filter(r=>r.dirs&&r.dirs.length).map(r=>({p:toXY(r.lat,r.lon),dirs:r.dirs,sel:ui.selSafety===r.id,rec:true})),
+    ...state.pois.filter(p=>p.type==="blind"&&p.unsafe&&p.unsafe.length).map(p=>({p:toXY(p.lat,p.lon),dirs:p.unsafe,sel:ui.selPoi===p.id}))];
+  for(const u of unsafeMarks){const s2=S(u.p.x,u.p.y),R=u.sel?44:34;
+    for(const i of u.dirs){const a1=rad(i*22.5-11.25),a2=rad(i*22.5+11.25);
+      o+=`<path d="M${s2.x} ${s2.y}L${(s2.x+Math.sin(a1)*R).toFixed(1)} ${(s2.y-Math.cos(a1)*R).toFixed(1)}A${R} ${R} 0 0 1 ${(s2.x+Math.sin(a2)*R).toFixed(1)} ${(s2.y-Math.cos(a2)*R).toFixed(1)}Z" fill="var(--bad)" fill-opacity="${u.sel?0.45:0.3}" stroke="var(--bad)" stroke-width="1"/>`}
+    if(u.rec)o+=`<circle cx="${s2.x}" cy="${s2.y}" r="4" fill="var(--card)" stroke="var(--bad)" stroke-width="2"/>`}
+  state.pois.filter(p=>p.type!=="field"&&p.type!=="bedding").forEach(p=>{const q=toXY(p.lat,p.lon);o+=glyph(p,S(q.x,q.y),ui.selPoi===p.id)});
+  // which way each blind faces
+  const arrow=(s2,b,op)=>{const ax=Math.sin(rad(b)),ay=-Math.cos(rad(b)),x1=s2.x+ax*15,y1=s2.y+ay*15,x2=s2.x+ax*44,y2=s2.y+ay*44;
+    return`<g opacity="${op}"><path d="M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="var(--paper)" stroke-width="6" stroke-linecap="round"/><path d="M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/><path d="M${(x2+ax*4).toFixed(1)} ${(y2+ay*4).toFixed(1)}L${(x2-ax*6-ay*6).toFixed(1)} ${(y2-ay*6+ax*6).toFixed(1)}L${(x2-ax*6+ay*6).toFixed(1)} ${(y2-ay*6-ax*6).toFixed(1)}Z" fill="var(--ink)" stroke="var(--paper)" stroke-width="1"/></g>`};
+  suggCache.forEach(sg=>{if(sg.face!=null)o+=arrow(S(sg.c.x,sg.c.y),sg.face,ui.selSugg==null||ui.selSugg===sg.i?1:0.45)});
+  minesCache.forEach(sg=>{if(sg.face!=null)o+=arrow(S(sg.c.x,sg.c.y),sg.face,1)});
+  // section being marked
+  if(ui.mode==="section"&&ui.sec){const t=state.tracks.find(x=>x.id===ui.sec.id);if(t){
+    let d="";t.pts.forEach((q,i)=>{const p2=toXY(q[0],q[1]),s2=S(p2.x,p2.y);d+=(i?"L":"M")+s2.x.toFixed(1)+" "+s2.y.toFixed(1)});
+    o+=`<path d="${d}" fill="none" stroke="var(--orange)" stroke-width="9" stroke-opacity=".18" stroke-linecap="round" stroke-linejoin="round"/>`;
+    if(ui.sec.a!=null){const q=t.pts[ui.sec.a],p2=toXY(q[0],q[1]),s2=S(p2.x,p2.y);o+=`<circle cx="${s2.x}" cy="${s2.y}" r="8" fill="var(--orange)" stroke="var(--card)" stroke-width="2"/>`}}}
+  if(ui.secPick){const t=state.tracks.find(x=>x.id===ui.secPick.id);if(t){let d="";t.pts.slice(ui.secPick.a,ui.secPick.b+1).forEach((q,i)=>{const p2=toXY(q[0],q[1]),s2=S(p2.x,p2.y);d+=(i?"L":"M")+s2.x.toFixed(1)+" "+s2.y.toFixed(1)});
+    o+=`<path d="${d}" fill="none" stroke="var(--orange)" stroke-width="7" stroke-opacity=".7" stroke-linecap="round" stroke-linejoin="round"/>`}}
+  state.pois.filter(p=>p.type==="field"||p.type==="bedding").forEach(p=>{const q=toXY(p.lat,p.lon),s=S(q.x,q.y);o+=`<text x="${s.x+11}" y="${s.y-9}" font-family="var(--body)" font-size="12.5" font-weight="600" fill="var(--ink)" style="paint-order:stroke;stroke:var(--paper);stroke-width:3.5px;stroke-linejoin:round">${esc(p.name)}</text>`});
+  suggCache.forEach(sg=>{const s=S(sg.c.x,sg.c.y),sel=ui.selSugg===sg.i;
+    o+=`<rect x="${s.x-12}" y="${s.y-12}" width="24" height="24" rx="5" fill="var(--orange)" stroke="${sel?"var(--ink)":"var(--card)"}" stroke-width="2"/><text x="${s.x}" y="${s.y+5.5}" text-anchor="middle" font-family="var(--display)" font-weight="700" font-size="16" fill="var(--on-orange)">${sg.i+1}</text>`});
+  // wind badge
+  const wx=34,wy=34;
+  o+=`<circle cx="${wx}" cy="${wy}" r="22" fill="var(--card)" stroke="var(--line)"/>`;
+  const ax=Math.sin(rad(wt)),ay=-Math.cos(rad(wt));
+  o+=`<path d="M${wx-ax*13} ${wy-ay*13}L${wx+ax*11} ${wy+ay*11}" stroke="var(--water)" stroke-width="2.5" stroke-linecap="round"/><path d="M${wx+ax*14} ${wy+ay*14}L${wx+ax*4-ay*6} ${wy+ay*4+ax*6}L${wx+ax*4+ay*6} ${wy+ay*4-ax*6}Z" fill="var(--water)"/>`;
+  o+=`<text x="${wx}" y="${wy+38}" text-anchor="middle" font-family="var(--mono)" font-size="11" fill="var(--ink)" style="paint-order:stroke;stroke:var(--paper);stroke-width:3px">${compass(state.wind)} wind</text>`;
+  // north
+  o+=`<path d="M${W-26} ${16}L${W-19} ${36}L${W-26} ${31}L${W-33} ${36}Z" fill="var(--ink)"/><text x="${W-26}" y="${50}" text-anchor="middle" font-family="var(--display)" font-weight="700" font-size="13" fill="var(--ink)">N</text>`;
+  // scale
+  const sb=[25,50,100,200,500,1000].reduce((a,b)=>b*view.k<=130?b:a,25),px=sb*view.k;
+  o+=`<path d="M14 ${H-16}V${H-10}H${14+px}V${H-16}" fill="none" stroke="var(--ink)" stroke-width="1.5"/><text x="${14+px+6}" y="${H-10}" font-family="var(--mono)" font-size="11" fill="var(--ink)">${sb} m</text>`;
+  if(!state.pois.length&&!state.tracks.length)o+=`<text x="${W/2}" y="${H/2}" text-anchor="middle" font-family="var(--body)" font-size="15" fill="var(--muted)">Import a GPX or add points</text>`;
+  svg.innerHTML=o;
+}
+
+/* ---------- map interaction ---------- */
+const ptr=new Map();let gest=null;
+svg.addEventListener("pointerdown",e=>{svg.setPointerCapture(e.pointerId);ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptr.size===1)gest={type:"tap",sx:e.clientX,sy:e.clientY,cx:view.cx,cy:view.cy};
+  else if(ptr.size===2){const [a,b]=[...ptr.values()];gest={type:"pinch",d:Math.hypot(a.x-b.x,a.y-b.y),k:view.k,mid:mid(a,b),c:{x:view.cx,y:view.cy}}}});
+function mid(a,b){const r=svg.getBoundingClientRect();return{x:(a.x+b.x)/2-r.left,y:(a.y+b.y)/2-r.top}}
+svg.addEventListener("pointermove",e=>{if(!ptr.has(e.pointerId)||!gest)return;ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(gest.type!=="pinch"&&ptr.size===1){const dx=e.clientX-gest.sx,dy=e.clientY-gest.sy;if(gest.type==="tap"&&Math.hypot(dx,dy)>6)gest.type="pan";
+    if(gest.type==="pan"){view.cx=gest.cx-dx/view.k;view.cy=gest.cy+dy/view.k;renderMap()}}
+  else if(gest.type==="pinch"&&ptr.size===2){const [a,b]=[...ptr.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);const m=mid(a,b);
+    const before=(()=>{const {W,H}=size();return{x:(gest.mid.x-W/2)/gest.k+gest.c.x,y:(H/2-gest.mid.y)/gest.k+gest.c.y}})();
+    view.k=Math.max(0.03,Math.min(12,gest.k*d/gest.d));const {W,H}=size();view.cx=before.x-(m.x-W/2)/view.k;view.cy=before.y-(H/2-m.y)/view.k;renderMap()}});
+function endPtr(e){if(!ptr.has(e.pointerId))return;ptr.delete(e.pointerId);
+  if(gest&&gest.type==="tap"&&ptr.size===0){const r=svg.getBoundingClientRect();onTap(e.clientX-r.left,e.clientY-r.top)}
+  if(ptr.size===0)gest=null;else if(gest&&gest.type==="pinch")gest={type:"pan-wait"}}
+svg.addEventListener("pointerup",endPtr);svg.addEventListener("pointercancel",e=>{ptr.delete(e.pointerId);if(!ptr.size)gest=null});
+svg.addEventListener("wheel",e=>{e.preventDefault();const r=svg.getBoundingClientRect(),sx=e.clientX-r.left,sy=e.clientY-r.top;const w=W2(sx,sy);
+  view.k=Math.max(0.03,Math.min(12,view.k*Math.exp(-e.deltaY*0.0015)));const {W,H}=size();view.cx=w.x-(sx-W/2)/view.k;view.cy=w.y-(H/2-sy)/view.k;renderMap()},{passive:false});
+
+function onTap(sx,sy){
+  const w=W2(sx,sy);
+  if(ui.mode==="add"){const ll=toLL(w.x,w.y);const t=ui.addType;const n=state.pois.filter(p=>p.type===t).length+1;
+    const p={id:uid(),type:t,name:defaultName(t,n),lat:ll.lat,lon:ll.lon,sightings:[]};if(TYPES[t].radius)p.radius=TYPES[t].radius;
+    if(state.example){}state.pois.push(p);setMode(null);ui.selPoi=p.id;changed();openEditor();return}
+  if(ui.mode==="section"&&ui.sec){const t=state.tracks.find(x=>x.id===ui.sec.id);if(!t){setMode(null);return}
+    let bi=-1,bd2=36;t.pts.forEach((q,i)=>{const p2=toXY(q[0],q[1]),s2=S(p2.x,p2.y),d=Math.hypot(s2.x-sx,s2.y-sy);if(d<bd2){bd2=d;bi=i}});
+    if(bi<0){$("hinttxt").textContent="Tap closer to the highlighted line";return}
+    if(ui.sec.a==null){ui.sec.a=bi;$("hinttxt").textContent="Now tap where the section ends";renderMap();return}
+    const a=Math.min(ui.sec.a,bi),b=Math.max(ui.sec.a,bi);if(a===b){$("hinttxt").textContent="Tap a different spot for the end";return}
+    openSectionPanel(t,a,b);return}
+  if(ui.mode==="move"&&ui.selPoi){const p=state.pois.find(q=>q.id===ui.selPoi);if(p){const ll=toLL(w.x,w.y);p.lat=ll.lat;p.lon=ll.lon}setMode(null);changed();openEditor();return}
+  let best=null,bd=22;
+  suggCache.forEach(sg=>{const s=S(sg.c.x,sg.c.y),d=Math.hypot(s.x-sx,s.y-sy);if(d<bd){bd=d;best={sugg:sg}}});
+  state.pois.forEach(p=>{const q=toXY(p.lat,p.lon),s=S(q.x,q.y),d=Math.hypot(s.x-sx,s.y-sy);if(d<bd){bd=d;best={poi:p}}});
+  (state.safety||[]).forEach(r=>{const q=toXY(r.lat,r.lon),s=S(q.x,q.y),d=Math.hypot(s.x-sx,s.y-sy);if(d<bd){bd=d;best={safety:r}}});
+  if(best&&best.safety){openSafety(best.safety.id);return}
+  if(best&&best.sugg){ui.selSugg=best.sugg.i;ui.selPoi=null;closeEditor();renderSuggs();renderMap();const el=$("sugg-"+best.sugg.i);if(el)el.scrollIntoView({block:"nearest",behavior:"smooth"});return}
+  if(best&&best.poi){ui.selPoi=best.poi.id;ui.selSugg=null;openEditor();renderAll();return}
+  if(ui.selPoi||ui.selSugg!=null){ui.selPoi=null;ui.selSugg=null;closeEditor();renderAll()}
+}
+function defaultName(t,n){return({camera:"Cam ",scrape:"Scrape ",bedding:"Bedding ",field:"Field ",crossing:"Crossing ",drainage:"Creek ",bait:"Bait ",access:"Access ",blind:"Blind ",other:"Point "})[t]+n}
+function setMode(m){ui.mode=m;$("addbtn").classList.toggle("on",m==="add");
+  const h=$("hint");if(m==="add"){h.hidden=false;$("hinttxt").textContent="Tap the map to place: "+TYPES[ui.addType].label}else if(m==="move"){h.hidden=false;$("hinttxt").textContent="Tap the new spot"}else if(m==="section"){h.hidden=false;$("hinttxt").textContent="Tap where the section starts on the highlighted line"}else h.hidden=true}
+
+/* ---------- editor ---------- */
+function openEditor(){
+  const p=state.pois.find(q=>q.id===ui.selPoi);const ed=$("editor");if(!p){closeEditor();return}
+  ed.hidden=false;
+  const typeOpts=Object.entries(TYPES).map(([k,v])=>`<option value="${k}"${k===p.type?" selected":""}>${v.label}</option>`).join("");
+  const kindOpts=k=>Object.entries(KINDS).map(([a,v])=>`<option value="${a}"${a===k?" selected":""}>${v.label}</option>`).join("");
+  const rows=(p.sightings||[]).map((s,i)=>`<div class="srow"><div class="field-in"><label class="label" for="sk${i}">Seen</label><select id="sk${i}" data-s="${i}" data-f="kind">${kindOpts(s.kind)}</select></div>
+    <div class="field-in"><label class="label" for="sf${i}">From</label><input id="sf${i}" type="time" value="${esc(s.from)}" data-s="${i}" data-f="from"></div>
+    <div class="field-in"><label class="label" for="st${i}">To</label><input id="st${i}" type="time" value="${esc(s.to)}" data-s="${i}" data-f="to"></div>
+    <button class="x" data-del="${i}" aria-label="Remove sighting">&times;</button></div>`).join("");
+  const ll=`${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}`;
+  ed.innerHTML=`<div class="row" style="justify-content:space-between"><h2>Edit point</h2><button class="btn small" id="edDone">Done</button></div>
+  <div class="grid2"><div class="field-in"><label class="label" for="edName">Name</label><input id="edName" value="${esc(p.name)}"></div>
+  <div class="field-in"><label class="label" for="edType">Type</label><select id="edType">${typeOpts}</select></div></div>
+  ${(p.type==="bedding"||p.type==="field")?`<div class="field-in"><label class="label" for="edRad">Size (radius): <span id="edRadV">${p.radius||TYPES[p.type].radius}</span> m</label><input id="edRad" type="range" min="20" max="400" step="10" value="${p.radius||TYPES[p.type].radius}"></div>`:""}
+  ${p.type==="camera"?`<div style="display:flex;flex-direction:column;gap:6px"><span class="label">Facing: <b style="color:var(--ink)">${p.facing!=null?compass(p.facing):"not set"}</b></span>
+    <div class="cpwrap"><div id="edFace">${compassPicker(p.facing!=null?[sec16(p.facing)]:[],false)}</div><span class="sub" style="flex:1;min-width:140px">Tap the direction the camera points. Sightings then count where the camera looks, about 12 m out.${p.facing!=null?` <button class="btn small" id="edFaceClr">Clear</button>`:""}</span></div></div>`:""}
+  ${p.type==="blind"?`<div style="display:flex;flex-direction:column;gap:6px"><span class="label">Unsafe to shoot: <b style="color:var(--bad)">${p.unsafe&&p.unsafe.length?p.unsafe.slice().sort((a,b)=>a-b).map(i=>DIRS[i]).join(", "):"none marked"}</b></span>
+    <div class="cpwrap"><div id="edUnsafe">${compassPicker(p.unsafe||[],true)}</div><span class="sub" style="flex:1;min-width:140px">Tap each direction you must not shoot toward from this blind. Its card warns you if its main shot faces one of them.</span></div></div>`:""}
+  <div style="display:flex;flex-direction:column;gap:8px"><span class="label">Sightings</span>${rows||`<span class="empty">None yet. Add what your camera saw and when.</span>`}
+  <div><button class="btn small" id="edAddS">Add sighting</button></div></div>
+  <div class="coords">${ll}</div>
+  <div class="row"><button class="btn small" id="edMove">Move on map</button><button class="btn small danger" id="edDel">Delete point</button></div>`;
+  $("edDone").onclick=()=>{ui.selPoi=null;closeEditor();renderAll()};
+  $("edName").oninput=e=>{p.name=e.target.value;changed(true)};
+  $("edType").onchange=e=>{p.type=e.target.value;if(TYPES[p.type].radius&&!p.radius)p.radius=TYPES[p.type].radius;changed();openEditor()};
+  if($("edRad"))$("edRad").oninput=e=>{p.radius=+e.target.value;$("edRadV").textContent=p.radius;changed()};
+  $("edAddS").onclick=()=>{p.sightings=p.sightings||[];p.sightings.push({kind:"doe",from:"06:30",to:"08:00"});changed();openEditor()};
+  ed.querySelectorAll("[data-s]").forEach(el=>el.addEventListener("change",e=>{const i=+el.dataset.s;p.sightings[i][el.dataset.f]=el.value;changed()}));
+  ed.querySelectorAll("[data-del]").forEach(el=>el.onclick=()=>{p.sightings.splice(+el.dataset.del,1);changed();openEditor()});
+  $("edMove").onclick=()=>setMode("move");
+  if($("edFace"))wirePicker($("edFace"),i=>{p.facing=(p.facing!=null&&sec16(p.facing)===i)?null:i*22.5;changed();openEditor()});
+  if($("edFaceClr"))$("edFaceClr").onclick=()=>{p.facing=null;changed();openEditor()};
+  if($("edUnsafe"))wirePicker($("edUnsafe"),i=>{p.unsafe=p.unsafe||[];const k=p.unsafe.indexOf(i);if(k>=0)p.unsafe.splice(k,1);else p.unsafe.push(i);changed();openEditor()});
+  let armed=false;$("edDel").onclick=e=>{if(!armed){armed=true;e.target.textContent="Tap again to delete";return}state.pois=state.pois.filter(q=>q.id!==p.id);ui.selPoi=null;closeEditor();changed()};
+}
+function compassPicker(sel,unsafe){
+  let o=`<svg viewBox="0 0 200 200" class="cpick" role="group" aria-label="${unsafe?"Unsafe directions":"Facing"}">`;
+  const P=(a,r)=>[(100+Math.sin(a)*r).toFixed(1),(100-Math.cos(a)*r).toFixed(1)];
+  for(let i=0;i<16;i++){const a0=rad(i*22.5-11.25),a1=rad(i*22.5+11.25),r0=30,r1=94,[x0,y0]=P(a0,r0),[x1,y1]=P(a0,r1),[x2,y2]=P(a1,r1),[x3,y3]=P(a1,r0),on=sel.includes(i);
+    o+=`<path data-ci="${i}" d="M${x0} ${y0}L${x1} ${y1}A${r1} ${r1} 0 0 1 ${x2} ${y2}L${x3} ${y3}A${r0} ${r0} 0 0 0 ${x0} ${y0}Z" fill="${on?(unsafe?"var(--bad)":"var(--orange)"):"var(--bg)"}" fill-opacity="${on?0.8:1}" stroke="var(--line)" stroke-width="1.2" tabindex="0" role="button" aria-pressed="${on}" aria-label="${DIRS[i]}"/>`}
+  ["N","E","S","W"].forEach((d,k)=>{const [x,y]=P(rad(k*90),62);o+=`<text x="${x}" y="${(+y+5).toFixed(1)}" text-anchor="middle" font-family="var(--display)" font-weight="700" font-size="15" fill="var(--ink)" pointer-events="none">${d}</text>`});
+  o+=`<circle cx="100" cy="100" r="26" fill="var(--card)" stroke="var(--line)"/>`;
+  return o+"</svg>";
+}
+function wirePicker(root,fn){root.querySelectorAll("[data-ci]").forEach(el=>{el.onclick=()=>fn(+el.dataset.ci);el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fn(+el.dataset.ci)}}})}
+function openSafety(id){
+  const rec=(state.safety||[]).find(r=>r.id===id);const ed=$("editor");if(!rec)return;
+  ui.selSafety=id;ui.selPoi=null;ed.hidden=false;
+  const draw=()=>{ed.innerHTML=`<div class="row" style="justify-content:space-between"><h2>Unsafe directions</h2><button class="btn small" id="sfDone">Done</button></div>
+    <p class="windnote" style="margin:0">Tap every direction you must not shoot toward from here: houses, roads, trails, neighbours, other hunters. Blinds within the distance below won't be pointed that way; if a spot's main shot would face one of them, the app moves the blind.</p>
+    <div class="cpwrap"><div id="sfPick">${compassPicker(rec.dirs,true)}</div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:150px;flex:1"><span class="sub" style="color:var(--bad)">${rec.dirs.length?"Unsafe: "+rec.dirs.slice().sort((a,b)=>a-b).map(i=>DIRS[i]).join(", "):"None marked yet"}</span>
+    <div class="field-in"><label class="label" for="sfR">Applies within <span id="sfRv">${rec.r||250}</span> m</label><input id="sfR" type="range" min="100" max="600" step="50" value="${rec.r||250}"></div></div></div>
+    <div class="coords">${rec.lat.toFixed(5)}, ${rec.lon.toFixed(5)}</div>
+    <div class="row"><button class="btn small danger" id="sfDel">Delete these</button></div>`;
+    wirePicker($("sfPick"),i=>{const k=rec.dirs.indexOf(i);if(k>=0)rec.dirs.splice(k,1);else rec.dirs.push(i);changed();draw()});
+    $("sfR").oninput=e=>{rec.r=+e.target.value;$("sfRv").textContent=rec.r;changed(true)};
+    $("sfDone").onclick=()=>{if(!rec.dirs.length)state.safety=state.safety.filter(r=>r!==rec);ui.selSafety=null;closeEditor();changed()};
+    let armed=false;$("sfDel").onclick=e=>{if(!armed){armed=true;e.target.textContent="Tap again to delete";return}state.safety=state.safety.filter(r=>r!==rec);ui.selSafety=null;closeEditor();changed()};
+  };
+  draw();renderMap();ed.scrollIntoView({block:"nearest",behavior:"smooth"});
+}
+function startSection(id){ui.sec={id,a:null};ui.secPick=null;closeEditor();setMode("section");const t=state.tracks.find(x=>x.id===id);
+  if(t){const xy=t.pts.map(q=>toXY(q[0],q[1]));let a=1e9,b=-1e9,c=1e9,d=-1e9;xy.forEach(q=>{a=Math.min(a,q.x);b=Math.max(b,q.x);c=Math.min(c,q.y);d=Math.max(d,q.y)});
+    const {W,H}=size();view={cx:(a+b)/2,cy:(c+d)/2,k:Math.min((W-60)/Math.max(b-a,100),(H-90)/Math.max(d-c,100))}}
+  renderMap();svg.scrollIntoView({block:"center",behavior:"smooth"})}
+function openSectionPanel(t,a,b){
+  ui.secPick={id:t.id,a,b};setMode(null);const ed=$("editor");ed.hidden=false;
+  let len=0;for(let i=a+1;i<=b;i++){len+=dist(toXY(t.pts[i-1][0],t.pts[i-1][1]),toXY(t.pts[i][0],t.pts[i][1]))}
+  ed.innerHTML=`<div class="row" style="justify-content:space-between"><h2>Mark section</h2><button class="btn small" id="scCancel">Cancel</button></div>
+    <p class="windnote" style="margin:0">About ${Math.round(len)} m of ${esc(t.name)}, highlighted on the map. What is this part?</p>
+    <div class="row"><button class="btn primary" data-sk="deer">Deer path</button><button class="btn" data-sk="human">Human path</button><button class="btn" data-sk="base">Same as the rest of the line</button></div>
+    <p class="sub" style="margin:0">Deer paths count as deer travel. Human paths are where you walk; walk-in routes prefer them.</p>`;
+  ed.querySelectorAll("[data-sk]").forEach(btn=>btn.onclick=()=>{t.segs=t.segs||[];t.segs.push({a,b,kind:btn.dataset.sk});ui.secPick=null;ui.sec=null;closeEditor();changed()});
+  $("scCancel").onclick=()=>{ui.secPick=null;ui.sec=null;closeEditor();renderMap()};
+  ed.scrollIntoView({block:"nearest",behavior:"smooth"});renderMap();
+}
+function closeEditor(){$("editor").hidden=true;$("editor").innerHTML="";if(ui.mode==="move")setMode(null);if(ui.selSafety){ui.selSafety=null;renderMap()}}
+
+/* ---------- panels ---------- */
+let model=null,minesCache=[];
+function recompute(){
+  ELEV=buildElev();
+  model=buildModel(state.session);
+  const cands=candidates(model);
+  const picks=pick(model,cands,state.wind);
+  suggCache=picks.map((o,i)=>explain(o.c,model,state.wind,i,"sugg"));
+  if((state.safety||[]).some(r=>r.dirs&&r.dirs.length)){
+    model._noSafe=true;const raw=pick(model,cands,state.wind);model._noSafe=false;
+    for(const o of raw){const r=score(o.c,model,state.wind,false);if(!r.rawUnsafe)continue;
+      let nb=null,nd=500;suggCache.forEach(sg=>{const d=dist(sg.c,o.c);if(d<nd&&d>15){nd=d;nb=sg}});
+      if(nb&&!nb.moved)nb.moved={d:Math.round(nd),dir:compass(bearing(nb.c,o.c)),face:compass(r.rawFace)};
+      else if(!nb&&!model.safetyEmpty)model.safetyEmpty=compass(r.rawFace);}
+  }
+  minesCache=model.blinds.map((b,i)=>{const e=explain({x:b.x,y:b.y,blindUnsafe:b.unsafe||[]},model,state.wind,i,"mine");e.name=b.name;e.id=b.id;return e});
+  const strip=[];for(let i=0;i<16;i++){const pk=pick(model,cands,i*22.5);strip.push(pk.length?pk[0].r.s:0)}
+  return{strip,cands};
+}
+function renderStrip(strip){
+  const mx=Math.max(...strip,0.01);const cur=Math.round(norm(state.wind)/22.5)%16;
+  $("strip").innerHTML=strip.map((v,i)=>`<button style="height:${Math.max(6,v/mx*100)}%" class="${i===cur?"cur ":""}${v>=mx*0.7&&v>0?"good":""}" data-w="${i}" aria-label="${DIRS[i]} wind, ${Math.round(v/mx*100)} percent" title="${DIRS[i]}"></button>`).join("");
+  $("striplab").innerHTML=DIRS.map((d,i)=>`<span>${i%2?"":d}</span>`).join("");
+  $("strip").querySelectorAll("button").forEach(b=>b.onclick=()=>{state.wind=+b.dataset.w*22.5;changed()});
+  const good=strip.map((v,i)=>v>=mx*0.7&&v>0?DIRS[i]:null).filter(Boolean);
+  $("windnote").textContent=strip.every(v=>v<=0)?"Add deer sign or sightings to see which winds work.":"Bars show the best spot's strength for each wind. Strongest: "+good.join(", ")+".";
+}
+function suggHTML(sg,mine){
+  const mxs=Math.max(...suggCache.map(s=>s.r.s),sg.r.s,1);
+  const pct=Math.max(0,Math.min(100,sg.r.s/mxs*100));
+  const ll=sg.lat.toFixed(5)+", "+sg.lon.toFixed(5);
+  const title=mine?esc(sg.name):(state.session==="AM"?"Morning":"Evening")+" blind "+(sg.i+1);
+  return`<div class="sugg${!mine&&ui.selSugg===sg.i?" sel":""}" id="${mine?"":"sugg-"+sg.i}">
+    <div class="sugg-h"><div class="badge${mine?" mine":""}">${mine?"B":sg.i+1}</div><div style="flex:1;min-width:0"><div class="sugg-t">${title}</div>
+    <div class="row" style="gap:8px"><div class="meter" aria-label="Strength ${Math.round(pct)} percent"><i style="width:${pct}%;background:${sg.r.s<=0?"var(--bad)":pct<45?"var(--warn)":"var(--ok)"}"></i></div><span class="sub">${sg.r.s<=0?"poor on this wind":Math.round(pct)+"%"}</span></div></div>
+    ${mine?"":`<button class="btn small" data-show="${sg.i}">Show</button>`}</div>
+    ${sg.faceTxt?`<div class="facing"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><g transform="rotate(${Math.round(sg.face)} 11 11)"><path d="M11 3L16 12H13V19H9V12H6Z" fill="var(--ink)"/></g></svg><span>${esc(sg.faceTxt)}</span></div>`:""}
+    ${sg.moved?`<p class="moved">Moved for safety: the best spot ${sg.moved.d} m to the ${sg.moved.dir} would have faced ${sg.moved.face}, which you marked unsafe.</p>`:""}
+    <ul class="why">${sg.why.map(w=>`<li class="${w.neg?"neg":""}">${esc(w.t)}</li>`).join("")}
+    <li>${sg.route?`Walk-in from ${esc(sg.accName)}: about ${Math.round(sg.route.len/10)*10} m (dotted orange line)${sg.route.onHuman>0.25?", mostly on your human paths":""}; last stretch comes in from the ${sg.route.approach}.`:sg.human?`Walk in on ${esc(sg.human.name)}, a human path ${Math.round(sg.human.d)} m to the ${sg.human.dir}, then come in from the ${sg.walk}.`:`Walk in from the ${sg.walk}, away from deer travel.${model.accesses.length?"":" Add an Access / parking point to get a walk-in route."}`}</li></ul>
+    <div class="row" style="gap:6px;justify-content:space-between"><span class="sub">${sg.unsafeList.length?`<span style="color:var(--bad)">Unsafe to shoot: ${sg.unsafeList.join(", ")}</span>`:"No unsafe directions marked here"}</span>
+    <button class="btn small" ${mine?`data-editblind="${sg.id}"`:`data-unsafe="${sg.i}"`}>Unsafe directions</button></div>
+    <div class="row" style="gap:6px"><span class="label">Works on</span><div class="chips">${sg.winds.length?sg.winds.map(d=>`<span class="chip good">${d}</span>`).join(""):`<span class="chip">no wind scores well</span>`}</div></div>
+    <div class="row" style="gap:8px;justify-content:space-between"><span class="coords">${ll}</span>
+    <span class="row" style="gap:6px"><button class="btn small" data-copy="${ll}">Copy</button><a class="btn small" href="geo:${sg.lat.toFixed(6)},${sg.lon.toFixed(6)}?q=${sg.lat.toFixed(6)},${sg.lon.toFixed(6)}(${encodeURIComponent(mine?sg.name:"Blind "+(sg.i+1))})">Open in OsmAnd</a></span></div>
+  </div>`;
+}
+function renderSuggs(){
+  const s=model.sun;
+  $("suggsub").textContent=(state.session==="AM"?"Morning":"Evening")+" · "+compass(state.wind)+" wind";
+  const box=$("suggs");
+  if(!suggCache.length){box.innerHTML=`<p class="empty">${state.pois.length?"No spot clears the bedding and deer sign on a "+compass(state.wind)+" wind"+(model.safetyEmpty?", and safe shooting directions":"")+". Try another wind (see the bars above) or the other session.":"Add points with deer sign, bedding and sightings to get suggestions."}</p>`}
+  else box.innerHTML=(model.safetyEmpty?`<p class="moved">A spot facing ${model.safetyEmpty} was left out because you marked that direction unsafe.</p>`:"")+(model.notes.length?`<p class="windnote" style="color:var(--warn)">${model.notes.map(esc).join(" ")}</p>`:"")+suggCache.map(sg=>suggHTML(sg,false)).join("");
+  box.querySelectorAll("[data-unsafe]").forEach(b=>b.onclick=()=>{const sg=suggCache[+b.dataset.unsafe];let rec=(state.safety=state.safety||[]).find(r=>{const q=toXY(r.lat,r.lon);return dist(q,sg.c)<60});
+    if(!rec){rec={id:uid(),lat:+sg.lat.toFixed(6),lon:+sg.lon.toFixed(6),r:250,dirs:[]};state.safety.push(rec)}openSafety(rec.id)});
+  box.querySelectorAll("[data-show]").forEach(b=>b.onclick=()=>{const i=+b.dataset.show;ui.selSugg=i;const sg=suggCache[i];view.cx=sg.c.x;view.cy=sg.c.y;view.k=Math.max(view.k,0.9);renderSuggs();renderMap();svg.scrollIntoView({block:"center",behavior:"smooth"})});
+  wireCopy(box);
+  const mines=model.blinds;$("minesec").hidden=!mines.length;
+  if(mines.length){const mb=$("mines");mb.innerHTML=minesCache.map(e=>suggHTML(e,true)).join("");wireCopy(mb);
+    mb.querySelectorAll("[data-editblind]").forEach(b=>b.onclick=()=>{ui.selPoi=b.dataset.editblind;openEditor();renderMap();$("editor").scrollIntoView({block:"nearest",behavior:"smooth"})})}
+}
+function wireCopy(root){root.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const t=b.dataset.copy;try{await navigator.clipboard.writeText(t);b.textContent="Copied"}catch(e){b.textContent=t}setTimeout(()=>b.textContent="Copy",1600)})}
+function renderPoints(){
+  const pl=$("plist");
+  if(!state.pois.length){pl.innerHTML=`<p class="empty">No points yet. Import OsmAnd favourites as GPX, or pick a type and tap Add point.</p>`;return}
+  const order=["bedding","field","camera","scrape","crossing","bait","drainage","blind","access","other"];
+  const sorted=[...state.pois].sort((a,b)=>order.indexOf(a.type)-order.indexOf(b.type)||a.name.localeCompare(b.name));
+  pl.innerHTML=sorted.map(p=>{const sg=(p.sightings||[]).map(s=>(KINDS[s.kind]||{}).label+" "+s.from+"–"+s.to).join("; ");
+    return`<button class="pitem" data-id="${p.id}"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">${miniGlyph(p.type)}</svg><span style="min-width:0"><span class="nm">${esc(p.name)}</span><small>${TYPES[p.type].label}${sg?" · "+esc(sg):""}</small></span><span class="sub">Edit</span></button>`}).join("");
+  pl.querySelectorAll(".pitem").forEach(b=>b.onclick=()=>{ui.selPoi=b.dataset.id;const p=state.pois.find(q=>q.id===ui.selPoi);const q=toXY(p.lat,p.lon);view.cx=q.x;view.cy=q.y;openEditor();renderAll();$("editor").scrollIntoView({block:"nearest",behavior:"smooth"})});
+}
+function secSummary(t){
+  if(!t.segs||!t.segs.length)return"";const L={trail:0,route:0};
+  for(const pc of trackPieces(t)){if(!(pc.role in L))continue;for(let i=1;i<pc.pts.length;i++)L[pc.role]+=dist(toXY(pc.pts[i-1][0],pc.pts[i-1][1]),toXY(pc.pts[i][0],pc.pts[i][1]))}
+  return[L.trail?" · deer path "+Math.round(L.trail)+" m":"",L.route?" · human path "+Math.round(L.route)+" m":""].join("");
+}
+function renderLines(){
+  const ll=$("llist");
+  $("elevtxt").textContent=ELEV?(ELEV.src==="contours"?`Elevation ${Math.round(ELEV.zmin)}–${Math.round(ELEV.zmax)} m from OsmAnd contour lines`:`Elevation ${Math.round(ELEV.zmin)}–${Math.round(ELEV.zmax)} m from ${ELEV.n} GPS points (rough)`):"No elevation yet";
+  if(!state.tracks.length){ll.innerHTML=`<p class="empty">No lines yet. Record a track or trace one in OsmAnd's Plan a route, save it as GPX, and import it.</p>`;return}
+  const W=waterLines();
+  const grouped=state.tracks.filter(t=>t.src==="osmand"&&(t.role==="water"||t.role==="wetland"||t.role==="contour"||t.role==="woods"||t.role==="open"));
+  const listed=state.tracks.filter(t=>!grouped.includes(t));
+  const gcount=r=>grouped.filter(t=>t.role===r).length;
+  const summary=grouped.length?`<div class="lrow"><div class="row" style="justify-content:space-between;gap:6px"><span><b>From your OsmAnd map</b><br><small class="sub">${[gcount("water")?gcount("water")+" ponds/lakes":"",gcount("wetland")?gcount("wetland")+" wetlands":"",gcount("contour")?gcount("contour")+" contour lines":"",gcount("woods")?gcount("woods")+" wooded areas":"",gcount("open")?gcount("open")+" open areas":""].filter(Boolean).join(" · ")}</small></span><button class="btn small danger" id="osmDel">Remove</button></div></div>`:"";
+  ll.innerHTML=summary+listed.map(t=>{
+    const w=W.find(x=>x.id===t.id),zs=t.pts.map(q=>q[2]).filter(z=>z!=null&&isFinite(z));
+    let flow="";
+    if(w&&!w.pool){const a=w.xy[0],b=w.xy[w.xy.length-1];flow=w.flowKnown?`Flows ${compass(bearing(a,b))}${w.src==="elevation"?" (from elevation)":w.src==="map"?" (from map)":""}`:"Flow unknown: no height difference. Set it if you know.";}
+    const len=t.pts.reduce((s,q,i)=>{if(!i)return 0;const a=toXY(t.pts[i-1][0],t.pts[i-1][1]),b=toXY(q[0],q[1]);return s+dist(a,b)},0);
+    return`<div class="lrow">
+      <div class="grid2"><div class="field-in"><label class="label" for="ln-${t.id}">Name</label><input id="ln-${t.id}" data-lname="${t.id}" value="${esc(t.name)}"></div>
+      <div class="field-in"><label class="label" for="lr-${t.id}">Type</label><select id="lr-${t.id}" data-lrole="${t.id}">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===t.role?" selected":""}>${v}</option>`).join("")}</select></div></div>
+      <div class="row" style="justify-content:space-between;gap:6px"><small class="sub">${Math.round(len)} m${secSummary(t)}${zs.length?" · heights "+Math.round(Math.min(...zs))+"–"+Math.round(Math.max(...zs))+" m":" · no heights"}${flow?" · "+esc(flow):""}</small>
+      <span class="row" style="gap:6px">${(t.role==="trail"||t.role==="route"||t.role==="other")?`<button class="btn small" data-lsec="${t.id}">Mark sections</button>`:""}${t.segs&&t.segs.length?`<button class="btn small" data-lsecclr="${t.id}">Clear sections</button>`:""}${w&&!w.pool?`<button class="btn small" data-lflip="${t.id}">Reverse flow</button>`:""}<button class="btn small danger" data-ldel="${t.id}">Delete</button></span></div>
+    </div>`}).join("");
+  if($("osmDel")){let armed=false;$("osmDel").onclick=e=>{if(!armed){armed=true;e.target.textContent="Tap again";return}state.tracks=state.tracks.filter(t=>t.src!=="osmand");changed()}}
+  ll.querySelectorAll("[data-lname]").forEach(el=>el.oninput=()=>{const t=state.tracks.find(x=>x.id===el.dataset.lname);t.name=el.value;changed(true)});
+  ll.querySelectorAll("[data-lrole]").forEach(el=>el.onchange=()=>{const t=state.tracks.find(x=>x.id===el.dataset.lrole);t.role=el.value;changed()});
+  ll.querySelectorAll("[data-lflip]").forEach(el=>el.onclick=()=>{const t=state.tracks.find(x=>x.id===el.dataset.lflip);const w=W.find(x=>x.id===t.id);
+    const p0=toXY(t.pts[0][0],t.pts[0][1]),curFwd=Math.abs(w.xy[0].x-p0.x)<0.01&&Math.abs(w.xy[0].y-p0.y)<0.01;
+    t.flow=curFwd?"rev":"fwd";changed()});
+  ll.querySelectorAll("[data-lsec]").forEach(el=>el.onclick=()=>startSection(el.dataset.lsec));
+  ll.querySelectorAll("[data-lsecclr]").forEach(el=>el.onclick=()=>{const t=state.tracks.find(x=>x.id===el.dataset.lsecclr);t.segs=[];changed()});
+  ll.querySelectorAll("[data-ldel]").forEach(el=>{let armed=false;el.onclick=()=>{if(!armed){armed=true;el.textContent="Tap again";return}state.tracks=state.tracks.filter(x=>x.id!==el.dataset.ldel);changed()}});
+}
+function miniGlyph(t){const old=view;view={cx:0,cy:0,k:0.08};const g=glyph({type:t,name:"",radius:80},{x:14,y:14},false).replace(/<text[\s\S]*<\/text>/,"");view=old;return g}
+/* ---------- season and daily activity (typical for southern Quebec / Outaouais) ---------- */
+const PHASES=[
+ {k:"winter",from:[1,1],to:[3,31],name:"Winter yards",short:"Winter",d:"Deer gather in sheltered softwood yards and move as little as possible. Deer hunting is closed."},
+ {k:"summer",from:[4,1],to:[8,31],name:"Spring and summer",short:"Summer",d:"Fawns are born from late May into June. Bucks are in velvet and travel in bachelor groups."},
+ {k:"early",from:[9,1],to:[9,30],name:"Early fall",short:"Early fall",d:"Bucks shed velvet and bachelor groups break up. Evening feeding patterns are at their most predictable."},
+ {k:"prerut",from:[10,1],to:[10,24],name:"Pre-rut",short:"Pre-rut",d:"Rubs and the first scrapes show up. Deer are still keyed on food, and bucks start widening their range."},
+ {k:"seek",from:[10,25],to:[11,7],name:"Scraping and seeking",short:"Seeking",d:"Scrape activity peaks. Bucks cruise more in daylight, checking scrapes and doe bedding areas, usually from downwind."},
+ {k:"peak",from:[11,8],to:[11,24],name:"Chasing and peak breeding",short:"Peak rut",d:"Breeding peaks around mid-November. Bucks chase and tend does, may move at any hour including midday, and can vanish for a day or two while locked down with a doe."},
+ {k:"post",from:[11,25],to:[12,10],name:"Post-rut",short:"Post-rut",d:"Worn-down bucks go back to food and move mostly at dawn and dusk. A few still check does that weren't bred."},
+ {k:"late",from:[12,11],to:[12,31],name:"Second rut and early winter",short:"Late",d:"A few late does come into heat and draw bucks again. Food close to thick cover matters more as snow arrives, and deer start drifting toward winter yards."}];
+const TIPS={early:"Hunt the edges of evening food sources; mornings are slower.",prerut:"Hunt food-to-bedding routes and fresh scrapes, mostly in the evening.",
+ seek:"Best stretch for daylight buck movement. Sit scrape lines and trails downwind of doe bedding, and stay all morning if you can.",
+ peak:"Hunt doe trails, doe bedding edges and funnels between them. Midday sits can pay off; a buck you saw once may disappear for a day or two.",
+ post:"Food is key: field edges at dusk and the routes back to cover at dawn.",late:"Hunt food close to thermal cover; a late doe can still pull a buck in.",winter:"",summer:""};
+function phaseOf(dateStr){const [Y,M,D]=dateStr.split("-").map(Number),v=M*100+D;return PHASES.find(p=>v>=p.from[0]*100+p.from[1]&&v<=p.to[0]*100+p.to[1])||PHASES[0]}
+function dayBlocks(R,S,ph){
+  const rut=ph.k==="seek"||ph.k==="peak",peak=ph.k==="peak",m11=Math.max(R+121,660);
+  return[
+    {a:S+60,b:R-90,lvl:2,t:"Night: feeding in fields and openings"+(rut?"; bucks roam between doe groups":"")},
+    {a:R-90,b:R,lvl:2,t:"Before sunrise: finishing feeding and drifting back toward cover"},
+    {a:R,b:R+120,lvl:3,t:"Sunrise to mid-morning: peak movement back to bedding"+(rut?". Bucks check scrapes and cruise downwind of doe bedding":"")},
+    {a:R+120,b:m11,lvl:rut?2:1,t:rut?"Mid-morning: does bedded; bucks keep cruising, often until 10–11":"Mid-morning: mostly bedded"},
+    {a:m11,b:840,lvl:peak?2:1,t:peak?"Midday: bucks may move at any time looking for does":"Midday: bedded, may stand to stretch and browse near beds"},
+    {a:840,b:S-120,lvl:1,t:"Afternoon: bedded or browsing close to cover"},
+    {a:S-120,b:S+30,lvl:3,t:"Late afternoon to dusk: peak movement from bedding toward feed"+(rut?"; bucks trail does":"")},
+    {a:S+30,b:S+60,lvl:2,t:"After dark: deer arriving in fields"}];
+}
+function renderSeason(){
+  const ph=phaseOf(state.date),sun=sunTimes(state.date,origin.lat,origin.lon),R=sun.rise,S=sun.set;
+  const win=state.session==="AM"?[R-45,R+240]:[S-240,S+30],legal=[R-30,S+30];
+  $("seasub").textContent="Typical for the Outaouais";
+  // season bar Sep 1 to Dec 31
+  const doy=(m,d)=>Math.round((Date.UTC(2026,m-1,d)-Date.UTC(2026,8,1))/864e5);const span=doy(12,31)+1,W=360,x=v=>8+v/span*(W-16);
+  const fall=PHASES.filter(p=>p.from[0]>=9);let sb=`<svg viewBox="0 0 ${W} 74" role="img" aria-label="Fall season phases, with your hunt date marked">`;
+  fall.forEach((p,i)=>{const a=x(doy(...p.from)),b=x(doy(...p.to)+1);const hot=p.k==="seek"||p.k==="peak";
+    sb+=`<rect x="${a.toFixed(1)}" y="22" width="${(b-a-1).toFixed(1)}" height="16" rx="2" fill="${hot?"var(--orange)":"var(--deer)"}" fill-opacity="${p.k===ph.k?0.85:hot?0.4:0.22}"/>`;
+    sb+=`<text x="${((a+b)/2).toFixed(1)}" y="${i%2?58:16}" text-anchor="middle" font-family="var(--body)" font-size="11" fill="var(--${p.k===ph.k?"ink":"muted"})" font-weight="${p.k===ph.k?600:400}">${p.short}</text>`});
+  ["Sep","Oct","Nov","Dec"].forEach((mn,i)=>{const a=x(doy(9+i,1));sb+=`<line x1="${a}" y1="40" x2="${a}" y2="45" stroke="var(--muted)"/><text x="${a+2}" y="72" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">${mn}</text>`});
+  const rs=x(doy(11,7)),re=x(doy(11,22)+1);sb+=`<path d="M${rs} 44V48H${re}V44" fill="none" stroke="var(--ink)" stroke-width="1.2"/>`;
+  const [Y,M,D]=state.date.split("-").map(Number);const inFall=M>=9;
+  if(inFall){const mx=x(doy(M,D)+0.5);sb+=`<path d="M${mx} 20V40" stroke="var(--ink)" stroke-width="2.5"/><path d="M${mx-5} 18H${mx+5}L${mx} 23Z" fill="var(--ink)"/>`}
+  sb+="</svg>";
+  // 24 h activity
+  const H=x2=>8+x2/1440*(W-16),blocks=dayBlocks(R,S,ph);let db=`<svg viewBox="0 0 ${W} 86" role="img" aria-label="Typical deer activity through the day, with your hunt window">`;
+  db+=`<rect x="${H(0)}" y="14" width="${H(R)-H(0)}" height="40" fill="var(--ink)" fill-opacity=".07"/><rect x="${H(S)}" y="14" width="${H(1440)-H(S)}" height="40" fill="var(--ink)" fill-opacity=".07"/>`;
+  for(const bl of blocks)for(const [a,b] of intervals(bl.a,bl.b)){const h=bl.lvl*11;db+=`<rect x="${H(a).toFixed(1)}" y="${54-h}" width="${Math.max(0,H(b)-H(a)-0.6).toFixed(1)}" height="${h}" fill="var(--deer)" fill-opacity="${0.25+bl.lvl*0.18}"/>`}
+  for(const [a,b] of intervals(win[0],win[1]))db+=`<rect x="${H(a).toFixed(1)}" y="11" width="${(H(b)-H(a)).toFixed(1)}" height="46" fill="none" stroke="var(--orange)" stroke-width="2" rx="3"/>`;
+  db+=`<path d="M${H(legal[0])} 60V64H${H(legal[1])}V60" fill="none" stroke="var(--ink)" stroke-width="1.2"/>`;
+  let row=0;for(const p of state.pois)for(const sgt of (p.sightings||[])){const a=parseT(sgt.from),b=parseT(sgt.to);if(a==null||b==null||sgt.kind==="bear")continue;
+    for(const [u,v] of intervals(a,b))db+=`<rect x="${H(u).toFixed(1)}" y="${4+(row%2)*4}" width="${Math.max(3,H(v)-H(u)).toFixed(1)}" height="3" rx="1.5" fill="${sgt.kind==="bigbuck"?"var(--bad)":"var(--water)"}"/>`;row++}
+  [0,6,12,18,24].forEach(h=>{db+=`<text x="${H(h*60)}" y="80" text-anchor="${h===0?"start":h===24?"end":"middle"}" font-family="var(--mono)" font-size="10.5" fill="var(--muted)">${h}:00</text>`});
+  db+=`<text x="${H(R)}" y="72" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">☀ ${fmtMin(R)}</text><text x="${H(S)}" y="72" text-anchor="middle" font-family="var(--mono)" font-size="10" fill="var(--muted)">${fmtMin(S)}</text>`;
+  db+="</svg>";
+  // what deer are doing during the hunt window
+  const items=[];for(const bl of blocks)for(const [a,b] of intervals(bl.a,bl.b))for(const [c,d] of intervals(win[0],win[1])){const u=Math.max(a,c),v=Math.min(b,d);if(v-u>=10)items.push({u,v,bl})}
+  items.sort((p,q)=>((p.u-win[0]+1440)%1440)-((q.u-win[0]+1440)%1440));
+  const seen=[];for(const p of state.pois)for(const sgt of (p.sightings||[])){const a=parseT(sgt.from),b=parseT(sgt.to);if(a==null||b==null)continue;if(overlaps(a,b,win[0],win[1]))seen.push((KINDS[sgt.kind]||{}).label+" at "+p.name+", "+sgt.from+"–"+sgt.to)}
+  $("season").innerHTML=`<div><div class="phase-t">${ph.name}${inFall?"":" (outside the fall season)"}</div><p class="windnote" style="margin:4px 0 0">${ph.d}</p>${TIPS[ph.k]?`<p style="margin:6px 0 0;font-size:15px"><b>For hunting:</b> ${TIPS[ph.k]}</p>`:""}</div>
+    <div class="sbar">${sb}</div>
+    <p class="note" style="margin:-6px 0 0">Black bracket: Zone 10 west rifle season for antlered deer, Nov 7–22, 2026. Check the current rules before you go.</p>
+    <div><span class="label">Through the day on ${state.date}</span><div class="dbar">${db}</div>
+    <p class="note" style="margin:2px 0 0">Bar height is typical deer movement. Shaded: night. Orange box: your ${state.session==="AM"?"morning":"evening"} hunt. Bracket: legal hours ≈ ${fmtMin(legal[0])}–${fmtMin(legal[1])}. Thin marks at the top: your camera sightings (red is the big buck).</p></div>
+    <div><span class="label">During your ${state.session==="AM"?"morning":"evening"} hunt, ${fmtMin(win[0])}–${fmtMin(win[1])}</span>
+    <ul class="blocks" style="margin-top:6px">${items.map(it=>`<li><span class="tm">${fmtMin(it.u)}–${fmtMin(it.v)}</span><span><span class="lvl"><i style="width:${it.bl.lvl/3*100}%"></i></span>${esc(it.bl.t)}</span></li>`).join("")}</ul>
+    ${seen.length?`<p style="margin:8px 0 0;font-size:15px"><b>Your cameras in this window:</b> ${seen.map(esc).join("; ")}.</p>`:`<p class="note" style="margin:8px 0 0">None of your camera sightings fall in this window.</p>`}</div>
+    <p class="note" style="margin:0">These are averages for southern Quebec. Weather, moon, hunting pressure and individual deer all shift them; your own camera times beat any average.</p>`;
+}
+function renderSun(){const s=sunTimes(state.date,origin.lat,origin.lon);
+  $("suntxt").textContent=`${state.date} · sunrise ${fmtMin(s.rise)} · sunset ${fmtMin(s.set)} · legal ≈ ${fmtMin(s.rise-30)}–${fmtMin(s.set+30)}`}
+function renderDial(){
+  const w=state.wind,cx=75,cy=75;let o=`<circle cx="${cx}" cy="${cy}" r="66" fill="var(--bg)" stroke="var(--line)"/>`;
+  for(let i=0;i<16;i++){const a=rad(i*22.5),r1=i%4?60:56;o+=`<line x1="${cx+Math.sin(a)*r1}" y1="${cy-Math.cos(a)*r1}" x2="${cx+Math.sin(a)*66}" y2="${cy-Math.cos(a)*66}" stroke="var(--muted)" stroke-width="${i%4?1:1.6}"/>`}
+  ["N","E","S","W"].forEach((d,i)=>{const a=rad(i*90);o+=`<text x="${cx+Math.sin(a)*45}" y="${cy-Math.cos(a)*45+5}" text-anchor="middle" font-family="var(--display)" font-weight="700" font-size="14" fill="var(--muted)">${d}</text>`});
+  const a=rad(w),fx=cx+Math.sin(a)*60,fy=cy-Math.cos(a)*60,tx=cx-Math.sin(a)*34,ty=cy+Math.cos(a)*34;
+  o+=`<line x1="${fx}" y1="${fy}" x2="${tx}" y2="${ty}" stroke="var(--water)" stroke-width="4" stroke-linecap="round"/>`;
+  const ax=-Math.sin(a),ay=Math.cos(a);o+=`<path d="M${tx+ax*8} ${ty+ay*8}L${tx-ay*8} ${ty+ax*8}L${tx+ay*8} ${ty-ax*8}Z" fill="var(--water)"/>`;
+  o+=`<circle cx="${fx}" cy="${fy}" r="8" fill="var(--water)" stroke="var(--card)" stroke-width="2"/>`;
+  $("dial").innerHTML=o;$("dial").setAttribute("aria-valuenow",Math.round(w));$("dial").setAttribute("aria-valuetext",compass(w)+" wind");
+  $("windtxt").textContent=compass(w)+" ("+Math.round(w)+"°) → blowing "+compass(w+180);
+}
+function renderAll(){
+  const r=recompute();
+  $("exbanner").hidden=!state.example;
+  $("sesAM").setAttribute("aria-pressed",state.session==="AM");$("sesPM").setAttribute("aria-pressed",state.session==="PM");
+  $("date").value=state.date;$("maxshot").value=state.maxShot;$("maxshotv").textContent=state.maxShot;
+  renderSun();renderDial();renderStrip(r.strip);renderSeason();renderSuggs();renderLines();renderPoints();renderMap();
+}
+let chT=null;
+function changed(light){if(light){clearTimeout(chT);chT=setTimeout(()=>{renderAll()},400)}else renderAll();scheduleSave()}
+
+/* ---------- dial input ---------- */
+(function(){const d=$("dial");let drag=false;
+  const set=e=>{const r=d.getBoundingClientRect();const x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;state.wind=Math.round(norm(deg(Math.atan2(x,-y)))/22.5)*22.5%360;renderDial();};
+  d.addEventListener("pointerdown",e=>{drag=true;d.setPointerCapture(e.pointerId);set(e)});
+  d.addEventListener("pointermove",e=>{if(drag)set(e)});
+  d.addEventListener("pointerup",()=>{if(drag){drag=false;changed()}});
+  d.addEventListener("keydown",e=>{if(e.key==="ArrowRight"||e.key==="ArrowUp"){state.wind=norm(state.wind+22.5);changed();e.preventDefault()}if(e.key==="ArrowLeft"||e.key==="ArrowDown"){state.wind=norm(state.wind-22.5);changed();e.preventDefault()}});
+})();
+$("wl").onclick=()=>{state.wind=norm(state.wind-22.5);changed()};
+$("wr").onclick=()=>{state.wind=norm(state.wind+22.5);changed()};
+$("sesAM").onclick=()=>{state.session="AM";ui.selSugg=null;changed()};
+$("sesPM").onclick=()=>{state.session="PM";ui.selSugg=null;changed()};
+$("date").onchange=e=>{if(e.target.value){state.date=e.target.value;changed()}};
+$("maxshot").oninput=e=>{state.maxShot=+e.target.value;$("maxshotv").textContent=state.maxShot;changed(true)};
+$("addtype").innerHTML=Object.entries(TYPES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join("");
+$("addtype").onchange=e=>{ui.addType=e.target.value;if(ui.mode==="add")setMode("add")};
+$("addbtn").onclick=()=>{ui.addType=$("addtype").value;setMode(ui.mode==="add"?null:"add")};
+$("fitbtn").onclick=()=>{fit();renderMap()};
+let clearArmed=false;
+$("clearEx").onclick=e=>{if(!clearArmed){clearArmed=true;e.target.textContent="Tap again to clear";return}const s=emptyState();s.wind=state.wind;s.date=state.date;s.session=state.session;state=s;ui.selPoi=null;ui.selSugg=null;closeEditor();fit();changed()};
+
+/* ---------- GPX import ---------- */
+function guessType(name){const n=(name||"").toLowerCase();
+  if(/scrape|rub/.test(n))return"scrape";if(/bed/.test(n))return"bedding";if(/cross|ford|funnel|pinch/.test(n))return"crossing";
+  if(/field|clearing|meadow|food ?plot|plot/.test(n))return"field";if(/creek|ravine|river|brook|stream|drain|swamp/.test(n))return"drainage";
+  if(/bait|salt|lick|corn|apple/.test(n))return"bait";if(/park|truck|car|access|gate|road/.test(n))return"access";
+  if(/blind|stand|tree ?stand/.test(n))return"blind";if(/^[fa]\d+\b|cam/.test(n))return"camera";return"other"}
+function readFile(f){
+  if(f.text)return f.text();
+  return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result));r.onerror=()=>rej(r.error);r.readAsText(f)});
+}
+function imMsg(t){$("imMsg").textContent=t;setStatus(t)}
+$("importbtn").onclick=()=>{const b=$("importbox");b.hidden=false;imMsg("");b.scrollIntoView({block:"nearest",behavior:"smooth"})};
+$("imClose").onclick=()=>{$("importbox").hidden=true};
+$("imPaste").onclick=()=>{const t=$("gpxpaste").value.trim();if(!t){imMsg("Paste the GPX text first.");return}importTexts([{name:"pasted text",text:t}]).then(ok=>{if(ok)$("gpxpaste").value=""})};
+function restoreBackup(txt,name){
+  let d;try{d=JSON.parse(txt)}catch(e){return false}
+  if(!d||d.app!=="stand-planner"||!d.state||!Array.isArray(d.state.pois)){imMsg(name+" isn't a Stand Planner backup.");return true}
+  state=Object.assign(emptyState(),d.state);state.tracks=(state.tracks||[]).map(normTrack);state.example=false;ui.selPoi=null;ui.selSugg=null;closeEditor();
+  recomputeOrigin();fit();changed();
+  imMsg(`Restored backup: ${state.pois.length} points, ${state.tracks.length} tracks.`);
+  setTimeout(()=>{$("importbox").hidden=true},1500);
+  return true;
+}
+async function isImageryFile(f){
+  if(/\.(tif|tiff|kmz)$/i.test(f.name))return true;
+  try{const h=new Uint8Array(await f.slice(0,4).arrayBuffer());return(h[0]===0x49&&h[1]===0x49&&h[2]===42)||(h[0]===0x4d&&h[1]===0x4d&&h[3]===42)}catch(e){return false}
+}
+async function isMapFile(f){
+  if(/\.(osf|obf)$/i.test(f.name))return true;
+  try{const h=new Uint8Array(await f.slice(0,4).arrayBuffer());return h[0]===0x50&&h[1]===0x4b&&h[2]===3}catch(e){return false}
+}
+$("gpxfile").onchange=async e=>{
+  const files=[...(e.target.files||[])];e.target.value="";if(!files.length)return;
+  const maps=[],others=[],imgs=[];
+  for(const f of files){if(await isImageryFile(f))imgs.push(f);else if(await isMapFile(f))maps.push(f);else others.push(f)}
+  if(maps.length){await importOsmandMap(maps)}
+  if(imgs.length){await importImagery(imgs[0])}
+  if(!others.length)return;
+  imMsg("Reading "+others.length+" file"+(others.length===1?"":"s")+"…");
+  const items=[];
+  for(const f of others){try{items.push({name:f.name,text:await readFile(f)})}catch(err){imMsg("Couldn't open "+f.name+". Try pasting its text instead.")}}
+  if(items.length)importTexts(items);
+};
+
+/* ---------- Sentinel-2 imagery (GeoTIFF or KMZ from the Copernicus Browser) ---------- */
+function setImageryLayer(rec){
+  if(IMGLAYER&&IMGLAYER.url)URL.revokeObjectURL(IMGLAYER.url);
+  IMGLAYER=rec?{url:URL.createObjectURL(rec.blob),box:rec.box,date:rec.date,res:rec.res}:null;
+  $("imgbar").hidden=!IMGLAYER;
+  if(IMGLAYER){const rs=rec.res<1?rec.res.toFixed(1):Math.round(rec.res);$("imglabel").textContent=(rec.label||"Sentinel-2")+(rec.date?" · "+rec.date:"")+" · "+(rec.credit&&!rec.date?"to ":"")+rs+" m";$("imgcredit").textContent=rec.credit||"";$("imgcredit").hidden=!rec.credit;$("imgfade").value=state.imgFade??80}
+  renderMap();
+}
+async function importImagery(f){
+  if(state.example){imMsg("Import your own GPX or points first, so the app knows which area of the image to keep.");return}
+  const box=planBounds(1500);if(!box){imMsg("Import your own GPX or points first, so the app knows which area of the image to keep.");return}
+  imMsg("Reading the satellite image. This can take a few seconds…");
+  try{
+    const buf=await f.arrayBuffer();let img;
+    if(/\.kmz$/i.test(f.name)){img=await IMG.decodeKMZ(await OBF.unzip(buf,true))}
+    else img=await IMG.decodeTIFF(buf);
+    const r=IMG.render(img,box,2048);
+    if(r.coverage<0.02){imMsg("That image doesn't cover your plan area. Download a box that includes your property.");return}
+    const blob=await new Promise(res=>r.canvas.toBlob(res,"image/jpeg",0.85));
+    const rec={blob,box,date:IMG.dateFromName(f.name),res:r.srcRes,name:f.name};
+    try{await IMG.put("imagery",rec)}catch(e){}
+    setImageryLayer(rec);
+    imMsg(`Added the satellite image${rec.date?" from "+rec.date:""}${r.coverage<0.95?" (it covers about "+Math.round(r.coverage*100)+"% of your plan area)":""}. Use the slider under the map to fade it.`);
+    setTimeout(()=>{$("importbox").hidden=true;svg.scrollIntoView({block:"nearest",behavior:"smooth"})},1800);
+  }catch(err){imMsg("Couldn't use that image: "+(err&&err.message||"unreadable file")+".")}
+}
+$("imgfade").oninput=e=>{state.imgFade=+e.target.value;renderMap();scheduleSave()};
+{let armed=false;$("imgRemove").onclick=async e=>{if(!armed){armed=true;e.target.textContent="Tap again";setTimeout(()=>{armed=false;e.target.textContent="Remove"},3000);return}
+  try{await IMG.del("imagery")}catch(err){}setImageryLayer(null);armed=false;e.target.textContent="Remove"}}
+
+/* ---------- OsmAnd map import (.osf export or .obf) ---------- */
+function planBounds(padM){
+  const pts=[];state.pois.forEach(p=>pts.push([p.lat,p.lon]));state.tracks.filter(t=>t.src!=="osmand").forEach(t=>t.pts.forEach(q=>pts.push(q)));
+  if(!pts.length)return null;
+  let s=90,n=-90,w=180,e=-180;pts.forEach(([a,b])=>{s=Math.min(s,a);n=Math.max(n,a);w=Math.min(w,b);e=Math.max(e,b)});
+  const dLat=padM/110540,dLon=padM/(111320*Math.cos(rad((s+n)/2)));
+  return{south:s-dLat,north:n+dLat,west:w-dLon,east:e+dLon};
+}
+function clipLine(pts,b){
+  const inside=q=>q[0]>=b.south&&q[0]<=b.north&&q[1]>=b.west&&q[1]<=b.east;const out=[];let cur=null;
+  for(let i=0;i<pts.length;i++){const q=pts[i];
+    if(inside(q)){if(!cur){cur=[];if(i>0)cur.push(pts[i-1])}cur.push(q)}
+    else if(cur){cur.push(q);out.push(cur);cur=null}}
+  if(cur)out.push(cur);return out.filter(l=>l.length>1);
+}
+function clipPoly(pts,b){
+  // Sutherland-Hodgman against the plan rectangle, in lat/lon
+  let out=pts.slice();
+  const edges=[[q=>q[0]>=b.south,(p,q)=>{const t=(b.south-p[0])/(q[0]-p[0]);return[b.south,p[1]+t*(q[1]-p[1])]}],
+    [q=>q[0]<=b.north,(p,q)=>{const t=(b.north-p[0])/(q[0]-p[0]);return[b.north,p[1]+t*(q[1]-p[1])]}],
+    [q=>q[1]>=b.west,(p,q)=>{const t=(b.west-p[1])/(q[1]-p[1]);return[p[0]+t*(q[0]-p[0]),b.west]}],
+    [q=>q[1]<=b.east,(p,q)=>{const t=(b.east-p[1])/(q[1]-p[1]);return[p[0]+t*(q[0]-p[0]),b.east]}]];
+  for(const [inside,cut] of edges){const src=out;out=[];if(!src.length)break;
+    for(let i=0;i<src.length;i++){const cur=src[i],prev=src[(i+src.length-1)%src.length];
+      if(inside(cur)){if(!inside(prev))out.push(cut(prev,cur));out.push(cur)}else if(inside(prev))out.push(cut(prev,cur))}}
+  return out;
+}
+function inRing(p,ring){let c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if(((a.y>p.y)!==(b.y>p.y))&&(p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x))c=!c}return c}
+function simplify(pts,tolM){
+  if(pts.length<3)return pts;const xy=pts.map(q=>toXY(q[0],q[1])),keep=new Uint8Array(pts.length);keep[0]=keep[pts.length-1]=1;
+  const st=[[0,pts.length-1]];
+  while(st.length){const [a,b]=st.pop();let md=0,mi=-1;for(let i=a+1;i<b;i++){const d=segDist(xy[i],xy[a],xy[b]).d;if(d>md){md=d;mi=i}}if(md>tolM){keep[mi]=1;st.push([a,mi],[mi,b])}}
+  return pts.filter((_,i)=>keep[i]);
+}
+const RND=q=>q.map((v,i)=>i<2?+v.toFixed(6):v);
+/* Turns OsmAnd map objects ({tags,pts,area,inner}) into plan lines. Used for .osf files and for OsmAnd's live maps. */
+function mapResultsToTracks(results,box,added){
+        for(const r of results){
+          const t=r.tags;let role=null,name="",flow="auto";
+          const ww=t.waterway;
+          if(ww&&!r.area&&/^(river|stream|brook|canal|ditch|drain|tidal_channel|rapids)$/.test(ww)){role="creek";flow="map";name=t.name||t["name:en"]||(ww.charAt(0).toUpperCase()+ww.slice(1))}
+          else if((t.natural==="water"||ww==="riverbank")&&r.area){role="water";name=t.name||(t.water==="pond"?"Pond":t.water==="lake"?"Lake":"Water")}
+          else if(t.natural==="wetland"&&r.area){role="wetland";name=t.name||"Wetland"}
+          else if(t.contour!=null){role="contour";name="Contour "+(t.elevation||t.ele||"")+" m"}
+          else if(r.area&&(t.natural==="wood"||t.landuse==="forest"||t.natural==="scrub")){role="woods";name=t.natural==="scrub"?"Scrub":"Woods"}
+          else if(r.area&&(/^(meadow|farmland|grass|orchard|clearcut|logging)$/.test(t.landuse||"")||/^(grassland|heath)$/.test(t.natural||""))){role="open";name=t.landuse==="farmland"?"Farm field":t.landuse==="clearcut"||t.landuse==="logging"?"Cut-over":"Open ground"}
+          if(!role)continue;
+          let ele=null;if(role==="contour"){ele=parseFloat(t.elevation!=null?t.elevation:t.ele);if(!isFinite(ele))continue}
+          if(role==="woods"||role==="open"){
+            const outer=simplify(clipPoly(r.pts,box),4).map(RND);if(outer.length<3)continue;
+            const holes=(r.inner||[]).map(h=>simplify(clipPoly(h,box),4).map(RND)).filter(h=>h.length>=3);
+            const o={id:uid(),name,role,flow:"auto",src:"osmand",pts:outer};if(holes.length)o.holes=holes;added.push(o);continue;
+          }
+          const rings=r.area?[r.pts]:clipLine(r.pts,box);
+          for(let ring of rings){
+            if(r.area){const inBox=ring.some(q=>q[0]>=box.south&&q[0]<=box.north&&q[1]>=box.west&&q[1]<=box.east);if(!inBox)continue}
+            ring=simplify(ring,role==="contour"?6:3).map(RND);
+            if(ele!=null)ring=ring.map(q=>[q[0],q[1],ele]);
+            if(ring.length<2)continue;
+            added.push({id:uid(),name:String(name).slice(0,40),role,flow,src:"osmand",pts:ring});
+          }
+        }
+  return added;
+}
+async function importOsmandMap(files){
+  imMsg("Reading the OsmAnd export. This can take a few seconds…");
+  const want=(k,v)=>k==="waterway"||(k==="natural"&&/^(water|wetland|wood|scrub|grassland|heath)$/.test(v))||k==="contour"||(k==="landuse"&&/^(forest|meadow|farmland|grass|orchard|clearcut|logging)$/.test(v));
+  const added=[];let files_ok=0,missed=[];const maps=[],gpx=[],tiles=[],metas=[];
+  for(const f of files){
+    try{
+      const buf=await f.arrayBuffer();const head=new Uint8Array(buf,0,4);
+      const parts=(head[0]===0x50&&head[1]===0x4b)?await OBF.unzip(buf):[{name:f.name,kind:"obf",data:new Uint8Array(buf)}];
+      if(!parts.length){missed.push(f.name+" (nothing usable inside)");continue}
+      parts.forEach(x=>(x.kind==="gpx"?gpx:x.kind==="tile"?tiles:x.kind==="meta"?metas:maps).push(x));
+    }catch(err){missed.push(f.name+" ("+(err&&err.message||"unreadable")+")")}
+  }
+  let got={nt:0,np:0,ne:0};
+  if(gpx.length){
+    const items=gpx.map(g=>({name:g.name,text:new TextDecoder().decode(g.data)}));
+    got=await importTexts(items,true)||got;
+  }
+  if(!maps.length){
+    const mine=(got.nt||got.np)?`Imported ${got.nt} line${got.nt===1?"":"s"} and ${got.np} point${got.np===1?"":"s"} from the OsmAnd export. `:"";
+    const tmsg=tiles.length?await importTiles(tiles,metas):"";
+    if(mine||tmsg){imMsg(mine+tmsg+(mine?" Check each line's type under Lines, and tap points to set their type and sightings.":""));if(!/^Couldn|doesn't|first/.test(tmsg))setTimeout(()=>{$("importbox").hidden=true},2500)}
+    else imMsg("That export had no tracks, favourites, maps or imagery the app can use."+(missed.length?" "+missed.join("; "):""));
+    if(got.nt||got.np){recomputeOrigin();fit();renderMap()}
+    return;
+  }
+  if(state.example){imMsg("Import your own GPX or add your own points first, so the app knows which area to pull from the map.");return}
+  const box=planBounds(1500);if(!box){imMsg("Add your points or import a GPX first, so the app knows which area to pull from the map. Or include your tracks and favourites in the same OsmAnd export.");return}
+  for(const o of maps){
+    try{
+      {
+        const {results,info}=OBF.extract(o.data,box,want);files_ok++;
+        if(info.bounds&&(box.north<info.bounds.south||box.south>info.bounds.north||box.east<info.bounds.west||box.west>info.bounds.east))missed.push(o.name+" (doesn't cover your area)");
+        mapResultsToTracks(results,box,added);
+      }
+    }catch(err){missed.push(o.name+" ("+(err&&err.message||"unreadable")+")")}
+  }
+  if(!files_ok){imMsg("Couldn't read that file. Export the map from OsmAnd as .osf and try again."+(missed.length?" "+missed.join("; "):""));return}
+  state.tracks=state.tracks.filter(t=>t.src!=="osmand").concat(added);
+  ui.selPoi=null;ui.selSugg=null;changed();
+  const c=r=>added.filter(t=>t.role===r).length;
+  const parts=[c("creek")?c("creek")+" streams and rivers":"",c("water")?c("water")+" ponds/lakes":"",c("wetland")?c("wetland")+" wetlands":"",c("contour")?c("contour")+" contour lines":"",c("woods")?c("woods")+" wooded areas":"",c("open")?c("open")+" open areas":""].filter(Boolean);
+  const mine=(got.nt||got.np)?`Imported ${got.nt} of your line${got.nt===1?"":"s"} and ${got.np} point${got.np===1?"":"s"}. `:"";
+  imMsg(mine+(parts.length?`Added from your OsmAnd map within 1.5 km of your plan: ${parts.join(", ")}.${c("contour")?" Elevation now comes from the contour lines.":" No contour lines in this file, so elevation still comes from your tracks."}${missed.length?" Note: "+missed.join("; "):""}`:"No creeks, ponds or wetlands found within 1.5 km of your plan."+(missed.length?" "+missed.join("; "):"")));
+  if(got.nt||got.np){recomputeOrigin();fit();renderMap()}
+  if(tiles.length){const tmsg=await importTiles(tiles,metas);imMsg($("imMsg").textContent+" "+tmsg)}
+}
+async function importTiles(tiles,metas){
+  if(state.example)return"The imagery needs your own points first, so the app knows which area to keep.";
+  const box=planBounds(1500);if(!box)return"The imagery needs your own points or tracks first, so the app knows which area to keep.";
+  const src=(tiles[0].name.match(/tiles\/([^/]+)\//)||[])[1]||"Imagery";
+  const meta=metas.find(m=>m.name.includes("/"+src+"/"));const metaTxt=meta?new TextDecoder().decode(meta.data):"";
+  const inverted=/\[inverted_y\]\s*\n\s*(true|1)/i.test(metaTxt);
+  if(/\[ellipsoid\]\s*\n\s*(true|1)/i.test(metaTxt))return"This tile source uses an unusual map projection the app can't line up yet.";
+  try{
+    const r=await IMG.stitchTiles(tiles.filter(t=>t.name.includes("/"+src+"/")),box,4096,inverted);
+    if(!r||r.coverage<0.02)return"The imagery in that export doesn't cover your plan area. In OsmAnd, download tiles around your property and export again.";
+    const blob=await new Promise(res=>r.canvas.toBlob(res,"image/jpeg",0.88));
+    const clean=src.replace(/[\u{1F1E6}-\u{1F1FF}\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu,"").trim();
+    const credit=/arcgis|esri/i.test(src)?"Imagery © Esri and its data providers":/bing/i.test(src)?"Imagery © Microsoft":"";
+    const rec={blob,box,date:"",res:r.srcRes,name:src,label:clean,credit};
+    try{await IMG.put("imagery",rec)}catch(e){}
+    setImageryLayer(rec);
+    const rs=r.srcRes<1?r.srcRes.toFixed(1):Math.round(r.srcRes);
+    return`Added ${clean} imagery, down to about ${rs} m per pixel${r.sharpCover<0.9?" where you downloaded the sharpest tiles (about "+Math.round(r.sharpCover*100)+"% of your plan area), coarser elsewhere":""}${r.coverage<0.9?". It covers about "+Math.round(r.coverage*100)+"% of the plan area; download more tiles in OsmAnd to fill the rest":""}.`;
+  }catch(err){return"Couldn't use the imagery tiles: "+(err&&err.message||"unreadable")+"."}
+}
+async function importTexts(items,quiet){
+  let nt=0,np=0,ne=0,bad=[];
+  const parsed=[];
+  const gpxItems=[];
+  for(const it of items){if(/^\s*\{/.test(it.text)){if(!restoreBackup(it.text,it.name))bad.push(it.name)}else gpxItems.push(it)}
+  if(!gpxItems.length)return !bad.length;
+  for(const it of gpxItems){
+    try{const txt=it.text.replace(/^﻿/,"");const doc=new DOMParser().parseFromString(txt,"application/xml");
+      if(doc.getElementsByTagName("parsererror").length||!doc.getElementsByTagName("gpx").length)throw new Error("bad");
+      doc.__fname=(it.name||"").replace(/\.gpx$/i,"");parsed.push(doc)}catch(err){bad.push(it.name)}
+  }
+  if(!parsed.length){if(quiet)return{nt:0,np:0,ne:0};imMsg((bad.length?bad.join(", ")+" isn't":"That isn't")+" a GPX file. In OsmAnd, export as GPX (not KML or KMZ) and try again.");return false}
+  if(state.example){const s=emptyState();s.wind=state.wind;s.date=state.date;s.session=state.session;s.maxShot=state.maxShot;state=s}
+  for(const doc of parsed){
+    try{
+      const nameOf=el=>{for(const c of el.children){if(c.localName==="name")return c.textContent.trim()}return""};
+      const lines=[];
+      [...doc.getElementsByTagName("trk")].forEach(trk=>{const nm=nameOf(trk)||doc.__fname||"Track";const segs=[...trk.getElementsByTagName("trkseg")];
+        segs.forEach((sg,k)=>lines.push({name:nm+(segs.length>1?" "+(k+1):""),pts:[...sg.getElementsByTagName("trkpt")]}))});
+      [...doc.getElementsByTagName("rte")].forEach(r=>lines.push({name:nameOf(r)||doc.__fname||"Route",pts:[...r.getElementsByTagName("rtept")]}));
+      lines.forEach(L=>{let pts=L.pts.map(p=>{const e=p.getElementsByTagName("ele")[0],z=e?parseFloat(e.textContent):NaN;
+          const q=[+(+p.getAttribute("lat")).toFixed(6),+(+p.getAttribute("lon")).toFixed(6)];if(isFinite(z))q.push(Math.round(z*10)/10);return q}).filter(q=>isFinite(q[0])&&isFinite(q[1]));
+        if(pts.length>2500){const step=Math.ceil(pts.length/2500);pts=pts.filter((_,i)=>i%step===0||i===pts.length-1)}
+        if(pts.length>1){state.tracks.push({id:uid(),name:L.name.slice(0,40),role:guessRole(L.name),flow:"auto",pts});nt++;if(pts.some(q=>q.length>2))ne++}});
+      [...doc.getElementsByTagName("wpt")].forEach(w=>{const lat=+w.getAttribute("lat"),lon=+w.getAttribute("lon");if(!isFinite(lat)||!isFinite(lon))return;
+        const nm=(w.getElementsByTagName("name")[0]||{}).textContent||"Point";const t=guessType(nm);
+        const p={id:uid(),type:t,name:nm.trim().slice(0,40),lat,lon,sightings:[]};if(TYPES[t].radius)p.radius=TYPES[t].radius;
+        const ee=w.getElementsByTagName("ele")[0],ez=ee?parseFloat(ee.textContent):NaN;if(isFinite(ez))p.ele=Math.round(ez*10)/10;state.pois.push(p);np++});
+    }catch(err){}
+  }
+  recomputeOrigin();fit();changed();ui.selPoi=null;ui.selSugg=null;
+  if(quiet)return{nt,np,ne};
+  if(!nt&&!np){imMsg("The file opened but had no track or points in it.");return false}
+  imMsg(`Imported ${nt} line${nt===1?"":"s"}${ne?" ("+ne+" with heights)":""} and ${np} point${np===1?"":"s"}.${bad.length?" Skipped "+bad.join(", ")+".":""} Check each line's type under Lines, and tap points to set their type and sightings.`);
+  setTimeout(()=>{$("importbox").hidden=true;svg.scrollIntoView({block:"nearest",behavior:"smooth"})},1800);
+  return true;
+}
+
+/* ---------- export ---------- */
+function buildGPX(){
+  const x=s=>esc(s);let o=`<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Stand Planner" xmlns="http://www.topografix.com/GPX/1/1">\n`;
+  state.pois.forEach(p=>{o+=`  <wpt lat="${p.lat.toFixed(6)}" lon="${p.lon.toFixed(6)}">${p.ele!=null?`<ele>${p.ele}</ele>`:""}<name>${x(p.name)}</name><type>${x(TYPES[p.type].label)}</type></wpt>\n`});
+  suggCache.forEach(sg=>{o+=`  <wpt lat="${sg.lat.toFixed(6)}" lon="${sg.lon.toFixed(6)}"><name>${state.session} blind ${sg.i+1} (${compass(state.wind)} wind)</name><desc>${x((sg.faceTxt?sg.faceTxt+". ":"")+(sg.route?"Walk-in route from "+sg.accName+", last stretch from the "+sg.route.approach:"Walk in from the "+sg.walk)+". Works on: "+sg.winds.join(", ")+(sg.unsafeList.length?". Unsafe to shoot: "+sg.unsafeList.join(", "):""))}</desc><type>Suggested blind</type></wpt>\n`});
+  suggCache.forEach(sg=>{if(!sg.route)return;o+=`  <trk><name>Walk-in to ${state.session} blind ${sg.i+1}</name><type>Walk-in route</type><trkseg>\n`+sg.route.pts.map(q=>`    <trkpt lat="${q[0]}" lon="${q[1]}"/>`).join("\n")+`\n  </trkseg></trk>\n`});
+  minesCache.forEach(sg=>{if(!sg.route)return;o+=`  <trk><name>Walk-in to ${x(sg.name)}</name><type>Walk-in route</type><trkseg>\n`+sg.route.pts.map(q=>`    <trkpt lat="${q[0]}" lon="${q[1]}"/>`).join("\n")+`\n  </trkseg></trk>\n`});
+  state.tracks.filter(t=>t.src!=="osmand").forEach(t=>{o+=`  <trk><name>${x(t.name)}</name><type>${x(ROLES[t.role])}</type><trkseg>\n`+t.pts.map(q=>`    <trkpt lat="${q[0]}" lon="${q[1]}">${q.length>2?`<ele>${q[2]}</ele>`:""}</trkpt>`).join("\n")+`\n  </trkseg></trk>\n`});
+  return o+"</gpx>\n";
+}
+function saveBlob(name,text,type){
+  const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+async function shareFile(name,text,type){
+  const f=new File([text],name,{type});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return true}
+  return false;
+}
+const today=()=>new Date().toISOString().slice(0,10);
+$("exportbtn").onclick=()=>{
+  const box=$("exportbox");const g=buildGPX();box.hidden=false;
+  const gname=`stand-plan-${state.session}-${compass(state.wind)}.gpx`;
+  box.innerHTML=`<div class="row" style="justify-content:space-between"><h2>Export</h2><button class="btn small" id="exClose">Close</button></div>
+  <p class="windnote" style="margin:0">The GPX has your points, the ${state.session==="AM"?"morning":"evening"} suggestions for a ${compass(state.wind)} wind, and your tracks. <b>Send to OsmAnd</b> opens Android's share menu; pick OsmAnd. Avoid cloud apps if you want the file to stay on the phone.</p>
+  <div class="row"><button class="btn primary" id="exShare">Send to OsmAnd</button><button class="btn" id="exSave">Save .gpx to Downloads</button></div>
+  <div class="row"><button class="btn" id="exBackup">Save backup</button><span class="windnote">A backup file restores everything, including sightings. Restore it with Import.</span></div>
+  <span class="status" id="exMsg"></span>`;
+  $("exClose").onclick=()=>{box.hidden=true};
+  if(OA){
+    box.querySelector(".windnote").innerHTML=`<b>Put on OsmAnd map</b> replaces the last plan: blinds go to the <b>Scout/Planned blinds</b> favourites and walk-in routes to the <b>Scout/Walk-ins</b> track. The other buttons save files into OsmAnd's <b>standplanner</b> folder.`;
+    $("exShare").textContent="Put on OsmAnd map";$("exSave").textContent="Save .gpx";
+    $("exShare").onclick=async()=>{try{const r=await OA.call("saveResults",buildResults());$("exMsg").textContent=`On the map: ${r.blinds} blind${r.blinds===1?"":"s"} and ${r.routes} walk-in route${r.routes===1?"":"s"}.`}catch(e){$("exMsg").textContent="Couldn't save to OsmAnd: "+e.message}};
+    $("exSave").onclick=async()=>{try{const p=await OA.call("saveFile",{name:gname,text:g});$("exMsg").textContent="Saved "+p}catch(e){$("exMsg").textContent="Couldn't save: "+e.message}};
+    $("exBackup").onclick=async()=>{const bname="stand-planner-backup-"+today()+".json";try{const p=await OA.call("saveFile",{name:bname,text:JSON.stringify({app:"stand-planner",v:1,saved:new Date().toISOString(),state},null,1)});$("exMsg").textContent="Saved "+p}catch(e){$("exMsg").textContent="Couldn't save: "+e.message}};
+    box.scrollIntoView({block:"nearest",behavior:"smooth"});return;
+  }
+  $("exSave").onclick=()=>{saveBlob(gname,g,"application/gpx+xml");$("exMsg").textContent="Saved "+gname+" to Downloads"};
+  $("exShare").onclick=async()=>{try{if(!(await shareFile(gname,g,"application/gpx+xml"))){saveBlob(gname,g,"application/gpx+xml");$("exMsg").textContent="Sharing isn't available here, so it was saved to Downloads instead. Open it from there with OsmAnd."}}catch(e){if(e&&e.name!=="AbortError")$("exMsg").textContent="Couldn't share. Use Save .gpx instead."}};
+  $("exBackup").onclick=()=>{const bname="stand-planner-backup-"+today()+".json";saveBlob(bname,JSON.stringify({app:"stand-planner",v:1,saved:new Date().toISOString(),state},null,1),"application/json");$("exMsg").textContent="Saved "+bname+" to Downloads"};
+  box.scrollIntoView({block:"nearest",behavior:"smooth"});
+};
+
+/* ---------- inside OsmAnd (Scout plugin) ---------- */
+const OA=(()=>{if(!window.OsmAndBridge)return null;let n=0;const pend={};
+  window.__oaResolve=(id,ok,v)=>{const p=pend[id];if(!p)return;delete pend[id];ok?p.res(v):p.rej(new Error(v))};
+  return{call:(m,a)=>new Promise((res,rej)=>{const id=++n;pend[id]={res,rej};OsmAndBridge.request(id,m,JSON.stringify(a||{}))})}})();
+let oaBusy=false;
+async function syncFromOsmAnd(withMap){
+  if(!OA||oaBusy)return;oaBusy=true;
+  try{
+    setStatus("Reading your points and tracks from OsmAnd…");
+    const d=await OA.call("getPlanData");
+    if(state.example&&(d.pois.length||d.tracks.length)){const s=emptyState();s.wind=state.wind;s.date=state.date;s.session=state.session;s.maxShot=state.maxShot;state=s}
+    const seenP=new Set(),seenT=new Set();
+    // Untouched Scout names end in a timestamp ("Scrape Nov 2 07:01:05"); show them as "Scrape 1", "Scrape 2"…
+    const STAMP=/\s+(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d|[A-Z][a-z]{2} \d{1,2} \d\d:\d\d:\d\d)$/;const seq={};
+    d.pois.slice().sort((a,b)=>(a.time||0)-(b.time||0)).forEach(q=>{if(q.scout&&STAMP.test(q.name)){const base=q.name.replace(STAMP,"");seq[base]=(seq[base]||0)+1;q.name=base+" "+seq[base]}});
+    d.tracks.forEach(q=>{q.name=String(q.name).replace(/^Deer trail (\d{4}-\d\d-\d\d)_(\d\d)-(\d\d)$/,"Deer trail $1 $2:$3")});
+    d.pois.forEach(q=>{const id="oa:"+q.key;seenP.add(id);let p=state.pois.find(x=>x.id===id);
+      if(!p){const t=q.type&&TYPES[q.type]?q.type:guessType(q.name);p={id,type:t,name:String(q.name).slice(0,40),lat:q.lat,lon:q.lon,sightings:[]};if(TYPES[t].radius)p.radius=TYPES[t].radius;state.pois.push(p)}
+      else{p.lat=q.lat;p.lon=q.lon;p.name=String(q.name).slice(0,40)}
+      if(q.ele!=null)p.ele=q.ele;p.src="oa"});
+    state.pois=state.pois.filter(p=>p.src!=="oa"||seenP.has(p.id));
+    d.tracks.forEach(q=>{const id="oa:"+q.key;seenT.add(id);let t=state.tracks.find(x=>x.id===id);
+      if(!t){t=normTrack({id,name:String(q.name).slice(0,40),role:q.role||guessRole(q.name),pts:q.pts});t.src="oa";state.tracks.push(t)}
+      else{t.pts=q.pts;t.name=String(q.name).slice(0,40)}});
+    state.tracks=state.tracks.filter(t=>t.src!=="oa"||seenT.has(t.id));
+    ui.selPoi=null;ui.selSugg=null;
+    recomputeOrigin();
+    let msg=`From OsmAnd: ${d.pois.length} point${d.pois.length===1?"":"s"} and ${d.tracks.length} line${d.tracks.length===1?"":"s"} shown on the map.`;
+    if(withMap){
+      const box=planBounds(1500);
+      if(box){
+        setStatus("Reading creeks, woods and contours from your OsmAnd maps…");
+        const r=await OA.call("getMapFeatures",box);
+        const added=mapResultsToTracks(r.results,box,[]);
+        state.tracks=state.tracks.filter(t=>t.src!=="osmand").concat(added);
+        const c=k=>added.filter(t=>t.role===k).length;
+        const parts=[c("creek")?c("creek")+" streams":"",c("water")?c("water")+" ponds/lakes":"",c("wetland")?c("wetland")+" wetlands":"",c("woods")?c("woods")+" wooded areas":"",c("open")?c("open")+" open areas":"",c("contour")?c("contour")+" contour lines":""].filter(Boolean);
+        msg+=parts.length?` Map within 1.5 km: ${parts.join(", ")}.`:" No map features found within 1.5 km. Download the region map (and contour lines) for this area in OsmAnd.";
+        if(!c("contour"))msg+=" No contour lines here, so elevation comes from your tracks.";
+        if(r.truncated)msg+=" (Map was very busy; some features were skipped.)";
+      }
+    }
+    fit();changed();setTimeout(()=>setStatus(msg),900);
+  }catch(e){setStatus("Couldn't read from OsmAnd: "+(e&&e.message||e))}
+  finally{oaBusy=false}
+}
+function buildResults(){
+  const desc=sg=>(sg.faceTxt?sg.faceTxt+". ":"")+(sg.route?"Walk-in route from "+sg.accName+", last stretch from the "+sg.route.approach:"Walk in from the "+sg.walk)+". Works on: "+sg.winds.join(", ")+(sg.unsafeList.length?". Unsafe to shoot: "+sg.unsafeList.join(", "):"");
+  const title=`${state.session} plan, ${compass(state.wind)} wind, ${state.date}`;
+  return{title,
+    blinds:suggCache.map(sg=>({name:`${state.session} blind ${sg.i+1} (${compass(state.wind)} wind)`,lat:sg.lat,lon:sg.lon,desc:desc(sg)})),
+    routes:suggCache.filter(sg=>sg.route).map(sg=>({name:`Walk-in to ${state.session} blind ${sg.i+1}`,pts:sg.route.pts}))
+      .concat(minesCache.filter(sg=>sg.route).map(sg=>({name:`Walk-in to ${sg.name}`,pts:sg.route.pts})))};
+}
+
+/* ---------- boot ---------- */
+try{const lv=localStorage.getItem("standplanner.legend");if(lv==="closed")$("legend").open=false}catch(e){}
+$("legend").addEventListener("toggle",()=>{try{localStorage.setItem("standplanner.legend",$("legend").open?"open":"closed")}catch(e){}});
+try{const ls=localStorage.getItem("standplanner.v1");if(ls){const d=JSON.parse(ls);if(d&&d.pois){state=Object.assign(emptyState(),d);state.tracks=(state.tracks||[]).map(normTrack)}}}catch(e){}
+if(!state)state=exampleState();
+recomputeOrigin();
+requestAnimationFrame(()=>{fit();renderAll()});
+window.addEventListener("resize",()=>renderMap());
+setStatus("");
+keepStorage();
+IMG.get("imagery").then(rec=>{if(rec&&rec.blob)setImageryLayer(rec)}).catch(()=>{});
+if(OA){$("oasync").hidden=false;$("oasync").onclick=()=>syncFromOsmAnd(true);
+  document.querySelector(".privacy").textContent="Inside OsmAnd. Your locations stay on this phone.";
+  $("importbtn").textContent="Import file";
+  setTimeout(()=>syncFromOsmAnd(true),50)}
+else if("serviceWorker" in navigator&&location.protocol!=="file:"){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+})();
+</script>
+</body>
+</html>

@@ -11,18 +11,21 @@ import androidx.annotation.Nullable;
 public enum ScoutMark {
 
 	// Sign
-	SCRAPE("scrape", "Scrape", "Scout/Scrapes", "hunting", 0xFF8D5524, true),
-	RUB("rub", "Rub", "Scout/Rubs", "tree", 0xFFB5651D, true),
-	BED("bed", "Bed", "Scout/Beds", "bed", 0xFF6B8E23, true),
-	TRACKS("tracks", "Tracks", "Scout/Tracks", "dog_track", 0xFF795548, true),
-	CROSSING("crossing", "Trail crossing", "Scout/Crossings", "wildlife_crossing", 0xFFE65100, true),
-	SIGHTING("sighting", "Sighting", "Scout/Sightings", "hunting", 0xFFD50000, true),
+	SCRAPE("scrape", "Scrape", "Scout/Scrapes", "hunting", 0xFF8D5524, true, "scrape"),
+	RUB("rub", "Rub", "Scout/Rubs", "tree", 0xFFB5651D, true, "scrape"),
+	BED("bed", "Bed", "Scout/Beds", "bed", 0xFF6B8E23, true, "bedding"),
+	TRACKS("tracks", "Tracks", "Scout/Tracks", "dog_track", 0xFF795548, true, "other"),
+	CROSSING("crossing", "Trail crossing", "Scout/Crossings", "wildlife_crossing", 0xFFE65100, true, "crossing"),
+	SIGHTING("sighting", "Sighting", "Scout/Sightings", "hunting", 0xFFD50000, true, "other"),
+	FIELD("field", "Field / feeding", "Scout/Fields", "grassland", 0xFF9CCC65, true, "field"),
+	WET_SPOT("wet_spot", "Wet spot / spring", "Scout/Wet spots", "spring", 0xFF4FC3F7, true, "drainage"),
 
 	// Setups
-	CAMERA("camera", "Trail camera", "Scout/Cameras", "surveillance", 0xFF1565C0, false),
-	BLIND("blind", "Blind", "Scout/Blinds", "hunting_stand", 0xFF2E7D32, false),
-	BAIT("bait", "Bait", "Scout/Bait", "feeding_place", 0xFFF9A825, false),
-	SALT_LICK("salt_lick", "Salt lick", "Scout/Salt licks", "salt_yes", 0xFF9E9E9E, false);
+	CAMERA("camera", "Trail camera", "Scout/Cameras", "surveillance", 0xFF1565C0, false, "camera"),
+	BLIND("blind", "Blind", "Scout/Blinds", "hunting_stand", 0xFF2E7D32, false, "blind"),
+	BAIT("bait", "Bait", "Scout/Bait", "feeding_place", 0xFFF9A825, false, "bait"),
+	SALT_LICK("salt_lick", "Salt lick", "Scout/Salt licks", "salt_yes", 0xFF9E9E9E, false, "bait"),
+	ACCESS("access", "Access / parking", "Scout/Access", "parking", 0xFF424242, false, "access");
 
 	/** Written into the favourite description so the planner can classify points without parsing names. */
 	public static final String TAG_PREFIX = "scout:kind=";
@@ -33,14 +36,17 @@ public enum ScoutMark {
 	public final String iconName;
 	public final int color;
 	public final boolean isSign;
+	/** Matching point type in Stand Planner (its TYPES table). */
+	public final String plannerType;
 
-	ScoutMark(String key, String label, String folder, String iconName, int color, boolean isSign) {
+	ScoutMark(String key, String label, String folder, String iconName, int color, boolean isSign, String plannerType) {
 		this.key = key;
 		this.label = label;
 		this.folder = folder;
 		this.iconName = iconName;
 		this.color = color;
 		this.isSign = isSign;
+		this.plannerType = plannerType;
 	}
 
 	@NonNull

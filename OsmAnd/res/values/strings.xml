@@ -5923,5 +5923,7 @@ Download tile maps directly, or copy them as SQLite database files to OsmAnd\'s 
     <string name="scout_deer_trail_descr">Tap to start following a deer trail, tap again to save it as its own track. Keep Trip recording on while you walk so GPS stays active with the screen off.</string>
     <string name="scout_deer_trail_started">Deer trail started</string>
     <string name="scout_deer_trail_too_short">Deer trail too short, not saved</string>
+    <string name="scout_stand_planner">Stand Planner</string>
+    <string name="scout_stand_planner_descr">Open Stand Planner. It plans from the favourites and tracks shown on the map, plus the water, woods, open ground and contour lines in your downloaded maps, and puts suggested blinds and walk-in routes back on the map.</string>
     <string name="scout_deer_trail_saved">Saved %1$s</string>
 </resources>
