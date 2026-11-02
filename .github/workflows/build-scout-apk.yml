@@ -57,6 +57,10 @@ jobs:
 
     - name: Gradle cache
       uses: gradle/actions/setup-gradle@v4
+      with:
+        # OsmAnd-core ships an old, unlisted wrapper jar under core/wrappers/ that is never run;
+        # this fork's own wrapper is checked by the separate "Validate Gradle Wrapper" workflow.
+        validate-wrappers: false
 
     - name: Patch memory requirements
       working-directory: ./android
