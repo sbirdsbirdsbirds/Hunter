@@ -5909,4 +5909,19 @@ Download tile maps directly, or copy them as SQLite database files to OsmAnd\'s 
     <string name="routing_attr_difficulty_preference_description">Prefer routes of this difficulty, although routing over harder or easier pistes is still possible if shorter.</string>
     <string name="routing_attr_freeride_policy_name">Off-piste</string>
     <string name="routing_attr_freeride_policy_description">\'Freeride\' and \'Off-piste\' are unofficial routes and passages. Typically ungroomed, unmaintained and not checked in the evening. Enter at your own risk.</string>
+    <string name="scout_plugin_name">Scout</string>
+    <string name="scout_plugin_description">Hunting field recording: drop scrapes, rubs, beds, crossings, sightings, cameras, blinds, bait and salt licks as favourites under Scout/, and walk deer trails as their own tracks in tracks/Scout/. Record your own walk with Trip recording as usual.</string>
+    <string name="scout_mark_here">Scout mark</string>
+    <string name="scout_mark_action">Mark here</string>
+    <string name="scout_mark_action_descr">Pick a kind of sign or setup and drop it at your current GPS position (or the map centre if there is no fix yet).</string>
+    <string name="scout_mark_added">%1$s marked</string>
+    <string name="scout_mark_failed">Scout could not save that</string>
+    <string name="scout_no_gps_using_map_centre">No GPS fix yet, marking the map centre</string>
+    <string name="scout_deer_trail">Deer trail</string>
+    <string name="scout_deer_trail_start">Start deer trail</string>
+    <string name="scout_deer_trail_stop">Save deer trail</string>
+    <string name="scout_deer_trail_descr">Tap to start following a deer trail, tap again to save it as its own track. Keep Trip recording on while you walk so GPS stays active with the screen off.</string>
+    <string name="scout_deer_trail_started">Deer trail started</string>
+    <string name="scout_deer_trail_too_short">Deer trail too short, not saved</string>
+    <string name="scout_deer_trail_saved">Saved %1$s</string>
 </resources>

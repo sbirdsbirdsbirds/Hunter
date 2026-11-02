@@ -52,6 +52,7 @@ import net.osmand.plus.plugins.online.OnlineOsmandPlugin;
 import net.osmand.plus.plugins.openseamaps.NauticalMapsPlugin;
 import net.osmand.plus.plugins.osmedit.OsmEditingPlugin;
 import net.osmand.plus.plugins.parking.ParkingPositionPlugin;
+import net.osmand.plus.plugins.scout.ScoutPlugin;
 import net.osmand.plus.plugins.rastermaps.OsmandRasterMapsPlugin;
 import net.osmand.plus.plugins.skimaps.SkiMapsPlugin;
 import net.osmand.plus.plugins.astronomy.AstronomyPlugin;
@@ -124,6 +125,7 @@ public class PluginsHelper {
 		allPlugins.add(new ExternalSensorsPlugin(app));
 		allPlugins.add(new VehicleMetricsPlugin(app));
 		allPlugins.add(new AstronomyPlugin(app));
+		allPlugins.add(new ScoutPlugin(app));
 		allPlugins.add(new AccessibilityPlugin(app));
 		allPlugins.add(new OsmandDevelopmentPlugin(app));
 
